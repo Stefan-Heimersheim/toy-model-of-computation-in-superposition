@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.egg-info
+.vscode/
+.ipynb_checkpoints/
+*.code-workspace
+.pixi/

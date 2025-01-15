@@ -1,0 +1,1 @@
+"""Contains toy models that (possibly) illustrate computation in superposition."""
