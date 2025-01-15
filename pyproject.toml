@@ -1,12 +1,10 @@
 [project]
 #authors = [{name = "<name>", email = "<email>"},]
 description = "Experiments on toy models of CiS"
-name = "toy_cis"
-requires-python = ">= 3.13"
+name = "toy-cis"
+requires-python = ">= 3.8, <=3.12"
 version = "0.1.0"
-dependencies = [
-    "python-freethreading = '*'",
-]
+dependencies = []
 
 [build-system]
 build-backend = "hatchling.build"
@@ -23,15 +21,16 @@ extra-index-urls = [
 ]
 
 [tool.pixi.pypi-dependencies]
-cis = { path = ".", editable = true }
+toy-cis = { path = ".", editable = true }
 jax = { version = "==0.4.21" }  # for linux: "==0.4.28+cuda12"
 jaxlib = { version = "==0.4.21" }  # for linux: remove jaxlib dep (will be installed with jax)
-pip = "*"
+#python-freethreading = "*"
 sortedcontainers = "*"
 torch = { version = "==2.5.1+cu121" }
 wandb = "*"
 
 [tool.pixi.dependencies]
+pip = "*"
 datasets = { version = ">=2.14.6" }
 einops = "*"
 huggingface_hub = "*"
