@@ -8,8 +8,8 @@ import torch as t
 from einops import einsum
 from jaxtyping import Float
 from torch import nn
-from t.nn import functional as F
-from tqdm.notebook import tqdm
+from torch.nn import functional as F
+
 
 @dataclass
 class CisConfig:
@@ -53,6 +53,7 @@ class CisConfig:
         if isinstance(self.feat_importance, t.Tensor):
             if self.feat_importance.shape != (self.n_feat,):
                 raise ValueError(f"{self.feat_importance.shape=} must be ({self.n_feat},)")
+
 
 class Cis(nn.Module):
     """Anthropic Toy Models of Superposition Computation in Superposition toy model."""
@@ -105,8 +106,6 @@ class Cis(nn.Module):
     def forward(
         self, 
         x: Float[t.Tensor, "batch inst feat"],
-        y_true: Float[t.Tensor, "batch inst feat"],
-        loss_fn: Callable
     ) -> Float[t.Tensor, ""]:
         """Runs a forward pass through the model."""
 
@@ -118,29 +117,3 @@ class Cis(nn.Module):
         y = einsum(h, self.W2, "batch inst hid, inst hid feat -> batch inst feat")
         y = self.cfg.act_fn[1](y + self.b2)
         return y
-
-    def optimize(
-        self,
-        x: Float[t.Tensor, "batch inst feat"],
-        y_true: Float[t.Tensor, "batch inst feat"],
-        loss_fn: Callable,
-        optimizer: t.optim.Optimizer,
-        steps: int,
-        logging_freq: int
-    ):
-        """Optimizes the model."""
-        losses = []
-        pbar = tqdm(range(steps), desc="Training")
-
-        for step in pbar:
-            y = self.forward(x, y_true, loss_fn)
-            loss = loss_fn(y, y_true)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            # Log progress
-            if step % logging_freq == 0 or (step + 1 == steps):
-                losses.append(loss.item())
-                pbar.set_postfix({"loss": f"{loss.item():.4f}"})
-
-        return losses
