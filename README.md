@@ -4,4 +4,4 @@
 
 Recommended with [pixi](https://pixi.sh/latest/tutorials/python).
 
-In the root directory, just run `pixi install --manifest ./pyproject.toml` - this will create a conda env named 'toy_cis'.
+In the root directory, just run `pixi install --manifest ./pyproject.toml` - this will create a conda env named 'toy-cis'.
