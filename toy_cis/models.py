@@ -6,6 +6,7 @@ tms-cis, simple-relu, and res-mlp toy models can all be created with the same cl
 from dataclasses import dataclass, field
 from typing import Callable, List
 
+import numpy as np
 import torch as t
 
 from einops import einsum, rearrange
@@ -29,8 +30,7 @@ class CisConfig:
     W1_as_W2T: bool = False  # W2 is learned if False, else W2 = W1.T
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
     skip_cnx: bool = False  # if True, skip connection from in to out is added
-    feat_sparsity: float| Float[t.Tensor, "inst n_feat"] = 0.0  # sparsity of all or each feat
-    feat_importance: float | Float[t.Tensor, "inst n_feat"] = 1.0  # importance of all or each feat
+
 
     def __post_init__(self):
         """Ensure attribute values are valid."""
@@ -45,31 +45,19 @@ class CisConfig:
             expected_shape = (self.n_instances, self.n_hidden)
             if self.b2.shape != expected_shape:
                 raise ValueError(f"{self.b2.shape=} does not match {expected_shape=}")
-        
-        # Handle `feat_sparsity` tensor validation
-        if isinstance(self.feat_sparsity, t.Tensor):
-            if self.feat_sparsity.shape != (self.n_feat,):
-                raise ValueError(f"{self.feat_sparsity.shape=} must be ({self.n_feat},)")
-        
-        # Handle `feat_importance` tensor validation
-        if isinstance(self.feat_importance, t.Tensor):
-            if self.feat_importance.shape != (self.n_feat,):
-                raise ValueError(f"{self.feat_importance.shape=} must be ({self.n_feat},)")
+
 
 
 class Cis(nn.Module):
-    """Anthropic Toy Models of Superposition Computation in Superposition toy model."""
-
+    """A generic computation-in-superposition toy model."""
     # Some attribute type hints
     W1: Float[t.Tensor, "inst hid feat"]
     W2: Float[t.Tensor, "inst feat hid"]
     b1: Float[t.Tensor, "inst hid"]
     b2: Float[t.Tensor, "inst feat"]
-    s: Float[t.Tensor, "inst feat"]  # feature sparsity
-    i: Float[t.Tensor, "inst feat"]  # feature importance
 
 
-    def __init__(self, cfg: CisConfig):
+    def __init__(self, cfg: CisConfig, device: t.device):
         """Initializes model params."""
         super().__init__()
         self.cfg = cfg
@@ -77,7 +65,7 @@ class Cis(nn.Module):
         # Model Weights
         self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, cfg.n_feat)
         self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1))
-        if self.W1_as_W2T:
+        if cfg.W1_as_W2T:
             self.W2 = self.W1.T
         else:
             self.W2 = t.empty(cfg.n_instances, cfg.n_feat, cfg.n_hidden)
@@ -85,43 +73,32 @@ class Cis(nn.Module):
 
         # Model Biases
         if cfg.b1 is None:
-            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden)
-        elif isinstance(cfg.b1, float):
+            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden, device=device)
+        elif np.isscalar(cfg.b1):
             self.b1 = nn.Parameter(t.full((cfg.n_instances, cfg.n_hidden), cfg.b1))
         else:
-            self.b1 = cfg.b1
+            self.b1 = nn.Parameter(cfg.b1)
 
         if cfg.b2 is None:
-            self.b2 = t.zeros(cfg.n_instances, cfg.n_feat)
-        elif isinstance(cfg.b2, float):
+            self.b2 = t.zeros(cfg.n_instances, cfg.n_feat, device=device)
+        elif np.isscalar(cfg.b2):
             self.b2 = nn.Parameter(t.full((cfg.n_instances, cfg.n_feat), cfg.b2))
         else:
-            self.b2 = cfg.b2
+            self.b2 = nn.Parameter(cfg.b2)
 
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
             rand_ortho_mats = [
                 t.linalg.qr(t.randn(cfg.n_feat, cfg.n_feat))[0] for _ in range(cfg.n_instances)
             ]
-            self.We = t.stack(rand_ortho_mats)
+            self.We = t.stack(rand_ortho_mats, device=device)
             self.Wu = rearrange(self.We, "inst row col -> inst col row")
 
-        # Sparsities
-        if isinstance(cfg.feat_sparsity, float):
-            self.s = t.full((cfg.n_instances, cfg.n_feat), cfg.feat_sparsity)
-        else:
-            self.s = cfg.feat_sparsity
-
-        # Importances
-        if isinstance(cfg.feat_importance, float):
-            self.i = t.full((cfg.n_instances, cfg.n_feat), cfg.feat_importance)
-        else:
-            self.i = cfg.feat_importance
 
     def forward(
         self, 
         x: Float[t.Tensor, "batch inst feat"],
-    ) -> Float[t.Tensor, ""]:
+    ) -> Float[t.Tensor, "batch inst feat"]:
         """Runs a forward pass through the model."""
 
         # Embedding layer
@@ -145,3 +122,8 @@ class Cis(nn.Module):
             y = einsum(y, self.Wu, "batch inst feat, inst feat col -> batch inst feat")
 
         return y
+
+# Note:
+# Feature sparsity should be used in a function that generates batches.
+# Feature importance should be used in a loss function.
+# Both of these should be defined outside of this class, and called in a training loop.
