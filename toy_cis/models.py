@@ -66,10 +66,10 @@ class Cis(nn.Module):
 
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
-            rand_ortho_mats = [
-                t.linalg.qr(t.randn(cfg.We_dim, cfg.n_feat))[0] for _ in range(cfg.n_instances)
+            rand_unit_mats = [
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat), dim=0) for _ in range(cfg.n_instances)
             ]
-            self.We = t.stack(rand_ortho_mats).to(device)
+            self.We = t.stack(rand_unit_mats).to(device)
             self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
             n_feat = cfg.We_dim
 
