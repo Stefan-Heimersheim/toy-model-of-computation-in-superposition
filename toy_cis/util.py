@@ -1,5 +1,4 @@
 """Utility functions."""
-import numpy as np
 import torch as t
 from einops import rearrange
 from jaxtyping import Float
@@ -10,8 +9,8 @@ from toy_cis.models import Cis
 
 def threshold_matrix(matrix, threshold=0.001):
     """Sets matrix elements to zero if their absolute value is below the threshold."""
-    result = np.copy(matrix)
-    result[np.abs(result) < threshold] = 0
+    result = t.clone(matrix)
+    result[t.abs(result) < threshold] = 0
     return result
 
 
