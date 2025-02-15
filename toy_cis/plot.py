@@ -45,7 +45,7 @@ def plot_weight_bars(
             bottom_neg[mask_neg] += W[i][mask_neg]
     
     # Add colorbar.
-    norm = mpl.colors.Normalize(vmin=0, vmax=dim1) 
+    norm = mpl.colors.Normalize(vmin=0, vmax=(dim1 - 1))
     cmap = mpl.cm.get_cmap(palette, dim1)
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
     sm.set_array([])
@@ -63,7 +63,7 @@ def plot_input_output_response(
     """Plots the input-output response for each feature, in the sorted order of residual error."""
     fig, ax = plt.subplots(figsize=(8, 6))
     cmap = plt.get_cmap("viridis")
-    norm = plt.Normalize(vmin=0, vmax=Y.shape[0])
+    norm = plt.Normalize(vmin=0, vmax=(Y.shape[0] -1))
 
     x_vals = asnumpy(vals)
 
