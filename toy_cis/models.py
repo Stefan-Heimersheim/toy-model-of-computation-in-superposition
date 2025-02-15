@@ -67,11 +67,13 @@ class Cis(nn.Module):
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
             rand_unit_mats = [
-                F.normalize(t.randn(cfg.We_dim, cfg.n_feat), dim=0) for _ in range(cfg.n_instances)
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat), dim=0, p=2) for _ in range(cfg.n_instances)
             ]
             self.We = t.stack(rand_unit_mats).to(device)
             self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
             n_feat = cfg.We_dim
+
+            
 
         # Model Weights
         self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat)
@@ -96,6 +98,8 @@ class Cis(nn.Module):
             self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2))
         else:
             self.b2 = nn.Parameter(cfg.b2)
+        
+        self.to(device)
 
 
     def forward(
