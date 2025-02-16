@@ -29,6 +29,7 @@ class CisConfig:
     b2: float | Float[t.Tensor, "inst hid"] | None = 0.0
     W1_as_W2T: bool = False  # W2 is learned if False, else W2 = W1.T
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
+    We_dim: int = 1000  # if We_and_Wu, this is the dim of the embedding space
     skip_cnx: bool = False  # if True, skip connection from in to out is added
 
 
@@ -61,14 +62,26 @@ class Cis(nn.Module):
         """Initializes model params."""
         super().__init__()
         self.cfg = cfg
+        n_feat = cfg.n_feat
+
+        # Embed and Unembed Matrices
+        if cfg.We_and_Wu:
+            rand_unit_mats = [
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat), dim=0, p=2) for _ in range(cfg.n_instances)
+            ]
+            self.We = t.stack(rand_unit_mats).to(device)
+            self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
+            n_feat = cfg.We_dim
+
+            
 
         # Model Weights
-        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, cfg.n_feat)
+        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat)
         self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1))
         if cfg.W1_as_W2T:
             self.W2 = self.W1.T
         else:
-            self.W2 = t.empty(cfg.n_instances, cfg.n_feat, cfg.n_hidden)
+            self.W2 = t.empty(cfg.n_instances, n_feat, cfg.n_hidden)
             self.W2 = nn.Parameter(nn.init.xavier_normal_(self.W2))
 
         # Model Biases
@@ -80,19 +93,13 @@ class Cis(nn.Module):
             self.b1 = nn.Parameter(cfg.b1)
 
         if cfg.b2 is None:
-            self.b2 = t.zeros(cfg.n_instances, cfg.n_feat, device=device)
+            self.b2 = t.zeros(cfg.n_instances, n_feat, device=device)
         elif np.isscalar(cfg.b2):
-            self.b2 = nn.Parameter(t.full((cfg.n_instances, cfg.n_feat), cfg.b2))
+            self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2))
         else:
             self.b2 = nn.Parameter(cfg.b2)
-
-        # Embed and Unembed Matrices
-        if cfg.We_and_Wu:
-            rand_ortho_mats = [
-                t.linalg.qr(t.randn(cfg.n_feat, cfg.n_feat))[0] for _ in range(cfg.n_instances)
-            ]
-            self.We = t.stack(rand_ortho_mats, device=device)
-            self.Wu = rearrange(self.We, "inst row col -> inst col row")
+        
+        self.to(device)
 
 
     def forward(
@@ -103,7 +110,7 @@ class Cis(nn.Module):
 
         # Embedding layer
         if self.cfg.We_and_Wu:
-            x = einsum(x, self.We, "batch inst feat, inst feat col -> batch inst feat")
+            x = einsum(x, self.We, "batch inst feat, inst emb feat -> batch inst emb")
 
         # Hidden layer
         h = einsum(x, self.W1, "batch inst feat, inst hid feat -> batch inst hid")
@@ -119,7 +126,7 @@ class Cis(nn.Module):
         
         # Unembedding layer
         if self.cfg.We_and_Wu:
-            y = einsum(y, self.Wu, "batch inst feat, inst feat col -> batch inst feat")
+            y = einsum(y, self.Wu, "batch inst emb, inst feat emb -> batch inst feat")
 
         return y
 
