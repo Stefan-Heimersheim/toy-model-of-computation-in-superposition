@@ -3,12 +3,12 @@ import matplotlib as mpl
 import numpy as np
 import seaborn as sns
 import torch as t
+import pandas as pd
 
 from einops import asnumpy
 from jaxtyping import Float
 from matplotlib import pyplot as plt
 from torch import Tensor
-
 
 def plot_weight_bars(
     W: Float[Tensor, "dim1 dim2"], xax: str = "neuron", palette: str = "inferno"
@@ -84,3 +84,41 @@ def plot_input_output_response(
     plt.tight_layout()
 
     return fig
+
+def plot_loss_across_sparsities(loss_data, sparsities, model_name, trained_sparsity):
+    """
+    Plots normalized loss per feature vs. input sparsity.
+
+    Args:
+        loss_data (dict): Dictionary with keys 'sparsity' and 'loss_per_feature'.
+        sparsities (np.ndarray): 1D array of sparsity values used to compute naive loss.
+        model_name (str): Name of the model (for plot title and legend).
+    """
+    
+    # convert loss data to DataFrame, convert sparsity to probability and adjust loss
+    df_loss = pd.DataFrame(loss_data) 
+    df_loss["FeatProb"] = 1 - df_loss["sparsity"]
+    df_loss["loss/FeatProb"] = df_loss["loss_per_feature"] / df_loss["FeatProb"]
+    
+    naive_loss = 0.5 * (1 - sparsities) / 6 # compute naive loss (monosemantic solution)
+    norm_loss = naive_loss.ravel() / (1 - sparsities)
+    
+    # plot performance vs input sparsity
+    fig = plt.figure(figsize=(15, 8))
+    sns.lineplot(data = df_loss, x = "FeatProb", y = "loss/FeatProb")
+    
+    # add naive loss line
+    plt.plot(1- sparsities, norm_loss, linestyle="dashed", color="black", label=r"Naive loss") 
+    
+    # add labels and scale
+    plt.xlabel('Feature probability')
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.grid()
+    plt.legend(loc = "best", fontsize = 16)
+    plt.ylabel('Loss/Feature probability ')
+    trained_probability = 1 - trained_sparsity
+    plt.title(f"{model_name} trained at {trained_probability}: loss vs input probability")
+    plt.tight_layout()
+    return fig
+

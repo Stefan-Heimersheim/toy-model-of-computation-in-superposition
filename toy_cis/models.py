@@ -5,11 +5,12 @@ tms-cis, simple-relu, and res-mlp toy models can all be created with the same cl
 
 from dataclasses import dataclass, field
 from typing import Callable, List
+from tqdm.notebook import tqdm
 
 import numpy as np
 import torch as t
 
-from einops import einsum, rearrange
+from einops import einsum, rearrange, reduce
 from jaxtyping import Float
 from torch import nn
 from torch.nn import functional as F
@@ -58,10 +59,12 @@ class Cis(nn.Module):
     b2: Float[t.Tensor, "inst feat"]
 
 
-    def __init__(self, cfg: CisConfig, device: t.device):
+    def __init__(self, cfg: CisConfig, device: t.device,  name):
         """Initializes model params."""
         super().__init__()
         self.cfg = cfg
+        self.device = device
+        self.name = name
         n_feat = cfg.n_feat
 
         # Embed and Unembed Matrices
@@ -107,29 +110,86 @@ class Cis(nn.Module):
         x: Float[t.Tensor, "batch inst feat"],
     ) -> Float[t.Tensor, "batch inst feat"]:
         """Runs a forward pass through the model."""
-
+        
+        e = None
         # Embedding layer
         if self.cfg.We_and_Wu:
-            x = einsum(x, self.We, "batch inst feat, inst emb feat -> batch inst emb")
-
+            e = einsum(x, self.We, "batch inst feat, inst emb feat -> batch inst emb")
+        
         # Hidden layer
-        h = einsum(x, self.W1, "batch inst feat, inst hid feat -> batch inst hid")
+        h = einsum(e if e is not None else x, self.W1, "batch inst feat, inst hid feat -> batch inst hid")
         h = self.cfg.act_fn[0](h + self.b1)
 
         # Output layer
-        y = einsum(h, self.W2, "batch inst hid, inst feat hid -> batch inst feat")
+        if self.cfg.We_and_Wu: 
+            y = einsum(h, self.W2, "batch inst hid, inst emb hid -> batch inst emb")
+        else:
+            y = einsum(h, self.W2, "batch inst hid, inst feat hid -> batch inst feat")
         y = self.cfg.act_fn[1](y + self.b2)
         
         # Skip connection
         if self.cfg.skip_cnx:
-            y += x
+            if self.cfg.We_and_Wu:
+                x_embed = einsum(x, self.We, "batch inst feat, inst emb feat -> batch inst emb")
+                y += x_embed
+            else:
+                y += x
         
         # Unembedding layer
         if self.cfg.We_and_Wu:
             y = einsum(y, self.Wu, "batch inst emb, inst feat emb -> batch inst feat")
-
+            
         return y
+        
+    def gen_batch_reluPlusX (self, batch_sz: int, sparsity: float | Float[t.Tensor, "inst feat"]) -> (
+        tuple[Float[t.Tensor, "batch inst feat"], Float[t.Tensor, "batch inst feat"]]
+    ):
+        """Generates a batch of x, y data."""
+        # Randomly generate features vals, and for each, randomly set which samples are non-zero
+        x = t.rand(batch_sz, self.cfg.n_instances, self.cfg.n_feat, device=self.device) * 2 - 1  # [-1, 1]
+        is_active = (
+            t.rand(batch_sz, self.cfg.n_instances, self.cfg.n_feat, device=self.device) < (1 - sparsity)
+        )
+        x *= is_active
+        return x, x + t.relu(x)
 
+    def loss_fn_reluPlusX(self, y, y_true, i):
+        return reduce((y - y_true) ** 2 * i, "batch inst feat -> ", "mean")
+
+    def train_reluPlusX(
+        self,
+        batch_sz: int,
+        feat_sparsity: float | Float[t.Tensor, "inst feat"],
+        feat_importance: float | Float[t.Tensor, "inst feat"],
+        n_steps: int,
+        lr: float,
+        logging_freq: int,
+    ) -> List[Float]:
+        """Trains the model for `n_steps` steps, logging loss every `logging_freq` steps."""    
+        losses = []
+        
+        optimizer = t.optim.AdamW(self.parameters(), lr=lr, weight_decay=0.01)
+        
+        pbar = tqdm(range(n_steps), desc="Training")
+        for step in pbar:
+            x, y_true = self.gen_batch_reluPlusX(batch_sz, feat_sparsity)
+            y = self.forward(x)
+            loss = self.loss_fn_reluPlusX(y, y_true, feat_importance)
+            
+            # Update the learning rate
+            current_lr = lr * np.cos(0.5 * np.pi * step / (n_steps - 1))
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = current_lr
+                
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # Log progress
+            if step % logging_freq == 0 or (step + 1 == n_steps):
+                losses.append(loss.item())
+                pbar.set_postfix({"loss": f"{loss.item():.4f}"})
+        
+        return losses
 # Note:
 # Feature sparsity should be used in a function that generates batches.
 # Feature importance should be used in a loss function.
