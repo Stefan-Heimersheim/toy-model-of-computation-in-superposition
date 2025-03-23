@@ -19,6 +19,7 @@ from torch.nn import functional as F
 @dataclass
 class CisConfig:
     """Config class for single hidden layer CiS model."""
+    name: str # name of the model
     n_instances: int  # number of model instances
     n_feat: int  # number of features (elements) in input vector
     n_hidden: int  # number of hidden units in the model
@@ -32,6 +33,7 @@ class CisConfig:
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
     We_dim: int = 1000  # if We_and_Wu, this is the dim of the embedding space
     skip_cnx: bool = False  # if True, skip connection from in to out is added
+    
 
 
     def __post_init__(self):
@@ -59,12 +61,11 @@ class Cis(nn.Module):
     b2: Float[t.Tensor, "inst feat"]
 
 
-    def __init__(self, cfg: CisConfig, device: t.device,  name):
+    def __init__(self, cfg: CisConfig, device: t.device):
         """Initializes model params."""
         super().__init__()
         self.cfg = cfg
         self.device = device
-        self.name = name
         n_feat = cfg.n_feat
 
         # Embed and Unembed Matrices

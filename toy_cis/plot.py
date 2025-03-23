@@ -145,3 +145,47 @@ def plot_loss_across_sparsities(
     plt.tight_layout()
     return fig
 
+def plot_phase_diagram (loss_data, model_name): 
+    
+    """Plot phase diagram"""
+    loss = pd.DataFrame(loss_data)
+    
+    # Aggregate loss_per_feature over feature_idx
+    loss_avg = loss.groupby(["train_sparsity", "input_sparsity"])["loss_per_feature"].mean().reset_index()
+    loss_avg["input_probs"] = np.round(1 - loss_avg["input_sparsity"],2)
+    loss_avg["training_probs"] = np.round(1 - loss_avg["train_sparsity"],2)
+    loss_avg["loss/1-S"] = loss_avg["loss_per_feature"] / (1 - loss_avg["input_sparsity"])
+    
+    # Create pivot table for heatmap
+    pivot_table = loss_avg.pivot(index="input_probs", columns="training_probs", values="loss/1-S")
+    
+    # Plot phase diagram
+    fig = plt.figure(figsize=(10, 7))
+    sns.heatmap(pivot_table, cmap="viridis", annot=True, fmt=".2f", cbar_kws={'label': 'Adjusted loss'})
+    
+    plt.xlabel("Input FeatProb")
+    plt.ylabel("Training FeatProb")
+    plt.title(f"{model_name} model: Phase Diagram of \n Training FeatProb vs Input FeatProb (Loss)")
+    return fig
+
+def plot_phase_diagram_training(loss_data, model_name): 
+
+    """Plot phase diagram"""
+    loss = pd.DataFrame(loss_data)
+    
+    # Aggregate loss_per_feature over feature_idx
+    loss["featProbs"] = np.round(1 - loss["sparsity"],2)
+    loss["loss/1-S"] = loss["loss"] / (1 - loss["sparsity"])
+    
+    # Create pivot table for heatmap
+    pivot_table = loss.pivot(index="featProbs", columns="n_steps", values="loss/1-S")
+    
+    # Plot phase diagram
+    fig = plt.figure(figsize=(10, 7))
+    sns.heatmap(pivot_table, cmap="viridis", annot=True, fmt=".2f", cbar_kws={'label': 'Adjusted loss'})
+    
+    plt.xlabel("Featire Probability")
+    plt.ylabel("Training Steps")
+    plt.title(f"{model_name} model: Phase Diagram of \n Feature probability vs Training steps (Loss)")
+    return fig
+    

@@ -35,9 +35,11 @@ def in_out_response(
     )
     return Y[t.arange(n_feat), :, t.arange(n_feat)]
 
-def performance_across_sparsities(sparsities, model):
-    loss_data = []  # will store mean loss data
+def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsity=None):
 
+    if loss_data is None:
+        loss_data = []  # will store mean loss data
+        
     pbar = tqdm(sparsities, desc="Testing over sparsities")
     n_examples = 10000
     for s in pbar:
@@ -56,5 +58,9 @@ def performance_across_sparsities(sparsities, model):
             loss = rearrange(loss, "examples 1 features -> examples features")
             loss = asnumpy(reduce(loss, "examples features -> features", "mean"))
             for feat_idx, val in enumerate(loss):
-                loss_data.append({"sparsity": s, "feature_idx": feat_idx, "loss_per_feature": val})
+                if feat_sparsity is None:
+                    loss_data.append({"sparsity": s, "feature_idx": feat_idx, "loss_per_feature": val})
+                else:
+                    loss_data.append({"train_sparsity":feat_sparsity, "input_sparsity": s, 
+                                      "feature_idx": feat_idx, "loss_per_feature": val})
     return loss_data
