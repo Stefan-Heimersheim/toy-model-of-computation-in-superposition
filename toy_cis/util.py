@@ -1,11 +1,10 @@
 """Utility functions."""
 import torch as t
-from einops import rearrange
+from einops import rearrange, asnumpy,reduce
 from jaxtyping import Float
 from torch import Tensor
-
+from tqdm.notebook import tqdm
 from toy_cis.models import Cis
-
 
 def threshold_matrix(matrix, threshold=0.001):
     """Sets matrix elements to zero if their absolute value is below the threshold."""
@@ -35,3 +34,27 @@ def in_out_response(
         val=n_vals
     )
     return Y[t.arange(n_feat), :, t.arange(n_feat)]
+
+def performance_across_sparsities(sparsities, model):
+    loss_data = []  # will store mean loss data
+
+    pbar = tqdm(sparsities, desc="Testing over sparsities")
+    n_examples = 10000
+    for s in pbar:
+    
+        with t.no_grad():
+            # generate examples of inputs
+            x, y_true = model.gen_batch_reluPlusX (n_examples, s)
+            
+            # compute mean loss
+            y = model.forward(x)
+            active_weight, inactive_weight = 10, 1
+            weights = t.where(y_true == 1, active_weight, inactive_weight)
+            loss = weights * (y - y_true) ** 2
+            
+            # store loss at sparsity level
+            loss = rearrange(loss, "examples 1 features -> examples features")
+            loss = asnumpy(reduce(loss, "examples features -> features", "mean"))
+            for feat_idx, val in enumerate(loss):
+                loss_data.append({"sparsity": s, "feature_idx": feat_idx, "loss_per_feature": val})
+    return loss_data

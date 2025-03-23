@@ -5,13 +5,13 @@ import seaborn as sns
 import torch as t
 import pandas as pd
 
-from einops import asnumpy
+from einops import asnumpy, rearrange,reduce
 from jaxtyping import Float
 from matplotlib import pyplot as plt
 from torch import Tensor
 
 def plot_weight_bars(
-    W: Float[Tensor, "dim1 dim2"], xax: str = "neuron", palette: str = "inferno"
+    W: Float[Tensor, "dim1 dim2"],  model_name, feat_prob, xax: str = "neuron", palette: str = "inferno",
 ) -> plt.Figure:
     """Plots weights for each input_feature-hidden_neuron pair as stacked bars.
     
@@ -54,13 +54,23 @@ def plot_weight_bars(
 
     ax.set_xlabel(xax)
     ax.set_ylabel("Weight Value")
+    if xax == 'feature':
+        fig.get_axes()[0].set_title(f"{model_name} at FeatProb = {feat_prob} \n neuron weights per feature")
+    else: 
+        fig.get_axes()[0].set_title(f"{model_name} at FeatProb = {feat_prob} \n feature weights per neuron")
     
     return fig
 
 def plot_input_output_response(
-        Y: Float[Tensor, "feat val"], vals: Float[Tensor, ""], sorted_idxs: list[int]
+    Y: Float[Tensor, "feat val"], vals: Float[Tensor, ""], model_name: str, feat_prob: Float,
+    losses: list[Float]
 ) -> plt.Figure:
     """Plots the input-output response for each feature, in the sorted order of residual error."""
+    # Rank features in ascending order of residual error to ReLU(vals).
+    target = rearrange(t.relu(vals), "val -> 1 val")  # shape for broadcasting during err calculation
+    err = reduce((Y - target) ** 2, "feat val -> feat", "sum")
+    sorted_idxs = t.argsort(err).tolist()
+    
     fig, ax = plt.subplots(figsize=(8, 6))
     cmap = plt.get_cmap("viridis")
     norm = plt.Normalize(vmin=0, vmax=(Y.shape[0] -1))
@@ -83,9 +93,22 @@ def plot_input_output_response(
     ax.set_ylabel("Output")
     plt.tight_layout()
 
+    plt.grid()
+    ax = fig.get_axes()[0]
+    ax.plot(
+        asnumpy(vals), asnumpy(vals + t.relu(vals)), color="red", linestyle="--", label="target: x + relu(x)"
+    )
+    ax.set_title(
+        f"{model_name} at featProb = {feat_prob}" 
+        + f"\n input-output response per feature  (loss = {losses[-1]:.4f})"
+    )
+    ax.legend()
+
     return fig
 
-def plot_loss_across_sparsities(loss_data, sparsities, model_name, trained_sparsity):
+def plot_loss_across_sparsities(
+    loss_data, sparsities, model_name, trained_sparsity
+)-> plt.Figure:
     """
     Plots normalized loss per feature vs. input sparsity.
 
@@ -118,7 +141,7 @@ def plot_loss_across_sparsities(loss_data, sparsities, model_name, trained_spars
     plt.legend(loc = "best", fontsize = 16)
     plt.ylabel('Loss/Feature probability ')
     trained_probability = 1 - trained_sparsity
-    plt.title(f"{model_name} trained at {trained_probability}: loss vs input probability")
+    plt.title(f"{model_name} trained at featProb = {trained_probability}:\n loss vs input probability")
     plt.tight_layout()
     return fig
 
