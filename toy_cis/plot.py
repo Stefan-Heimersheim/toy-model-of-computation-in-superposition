@@ -184,8 +184,28 @@ def plot_phase_diagram_training(loss_data, model_name):
     fig = plt.figure(figsize=(10, 7))
     sns.heatmap(pivot_table, cmap="viridis", annot=True, fmt=".2f", cbar_kws={'label': 'Adjusted loss'})
     
-    plt.xlabel("Featire Probability")
-    plt.ylabel("Training Steps")
+    plt.ylabel("Training feature Probability")
+    plt.xlabel("Training Steps")
     plt.title(f"{model_name} model: Phase Diagram of \n Feature probability vs Training steps (Loss)")
+    return fig
+
+def plot_phase_diagram_polysem(poly_data, model_name): 
+    """Plot phase diagram"""
+    poly = pd.DataFrame(poly_data)
+    
+    # Aggregate loss_per_feature over feature_idx
+    poly["featProbs"] = np.round(1 - poly["sparsity"],2)
+    poly["mean_featPerNeuron"] = poly["features_per_neuron"].apply(np.mean)
+    
+    # Create pivot table for heatmap
+    pivot_table = poly.pivot(index="featProbs", columns="n_steps", values="mean_featPerNeuron")
+    
+    # Plot phase diagram
+    fig = plt.figure(figsize=(10, 7))
+    sns.heatmap(pivot_table, cmap="viridis", annot=True, fmt=".2f", cbar_kws={'label': 'Features per neuron'})
+    
+    plt.ylabel("Training feature Probability")
+    plt.xlabel("Training Steps")
+    plt.title(f"{model_name} model: Phase Diagram of \n Feature probability vs Training steps (Features per neuron)")
     return fig
     
