@@ -35,7 +35,7 @@ def in_out_response(
     )
     return Y[t.arange(n_feat), :, t.arange(n_feat)]
 
-def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsity=None):
+def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsity=None, n_steps=None):
 
     if loss_data is None:
         loss_data = []  # will store mean loss data
@@ -50,17 +50,25 @@ def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsi
             
             # compute mean loss
             y = model.forward(x)
-            active_weight, inactive_weight = 10, 1
-            weights = t.where(y_true == 1, active_weight, inactive_weight)
-            loss = weights * (y - y_true) ** 2
+            #active_weight, inactive_weight = 10, 1
+            #weights = t.where(y_true == 1, active_weight, inactive_weight)
+            #loss = weights * (y - y_true) ** 2
+            loss = (y - y_true) ** 2
             
             # store loss at sparsity level
             loss = rearrange(loss, "examples 1 features -> examples features")
             loss = asnumpy(reduce(loss, "examples features -> features", "mean"))
             for feat_idx, val in enumerate(loss):
                 if feat_sparsity is None:
-                    loss_data.append({"sparsity": s, "feature_idx": feat_idx, "loss_per_feature": val})
+                    if n_steps is None:
+                        loss_data.append({"sparsity": s, "feature_idx": feat_idx, "loss_per_feature": val})
+                    else:
+                        loss_data.append({"sparsity": s, "steps": n_steps, "feature_idx": feat_idx, "loss_per_feature": val})
                 else:
-                    loss_data.append({"train_sparsity":feat_sparsity, "input_sparsity": s, 
+                    if n_steps is None:
+                        loss_data.append({"train_sparsity":feat_sparsity, "input_sparsity": s, 
+                                      "feature_idx": feat_idx, "loss_per_feature": val})
+                    else: 
+                        loss_data.append({"train_sparsity":feat_sparsity, "n_steps":n_steps,"input_sparsity": s, 
                                       "feature_idx": feat_idx, "loss_per_feature": val})
     return loss_data
