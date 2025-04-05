@@ -58,7 +58,7 @@ def plot_weight_bars(
     return fig
 
 def plot_input_output_response(
-        Y: Float[Tensor, "feat val"], vals: Float[Tensor, ""], sorted_idxs: list[int]
+    Y: Float[Tensor, "feat val"], vals: Float[Tensor, ""], sorted_idxs: list[int]
 ) -> plt.Figure:
     """Plots the input-output response for each feature, in the sorted order of residual error."""
     fig, ax = plt.subplots(figsize=(8, 6))

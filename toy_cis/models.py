@@ -107,7 +107,6 @@ class Cis(nn.Module):
         x: Float[t.Tensor, "batch inst feat"],
     ) -> Float[t.Tensor, "batch inst feat"]:
         """Runs a forward pass through the model."""
-
         # Embedding layer
         if self.cfg.We_and_Wu:
             x = einsum(x, self.We, "batch inst feat, inst emb feat -> batch inst emb")
@@ -130,7 +129,7 @@ class Cis(nn.Module):
 
         return y
 
-# Note:
-# Feature sparsity should be used in a function that generates batches.
-# Feature importance should be used in a loss function.
-# Both of these should be defined outside of this class, and called in a training loop.
+    # Note:
+    # Feature sparsity should be used in a function that generates batches.
+    # Feature importance should be used in a loss function.
+    # Both of these should be defined outside of this class, and called in a training loop.
