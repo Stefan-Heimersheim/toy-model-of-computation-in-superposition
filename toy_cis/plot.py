@@ -157,7 +157,7 @@ def plot_phase_diagram (loss_data, model_name):
     loss_avg["loss/1-S"] = loss_avg["loss_per_feature"] / (1 - loss_avg["input_sparsity"])
     
     # Create pivot table for heatmap
-    pivot_table = loss_avg.pivot(index="input_probs", columns="training_probs", values="loss/1-S")
+    pivot_table = loss_avg.pivot(index="training_probs", columns="input_probs", values="loss/1-S")
     
     # Plot phase diagram
     fig = plt.figure(figsize=(10, 7))
