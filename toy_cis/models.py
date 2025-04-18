@@ -5,11 +5,12 @@ tms-cis, simple-relu, and res-mlp toy models can all be created with the same cl
 
 from dataclasses import dataclass, field
 from typing import Callable, List
+from tqdm.notebook import tqdm
 
 import numpy as np
 import torch as t
 
-from einops import einsum, rearrange
+from einops import einsum, rearrange, reduce
 from jaxtyping import Float
 from torch import nn
 from torch.nn import functional as F
@@ -22,16 +23,13 @@ class CisConfig:
     n_feat: int  # number of features (elements) in input vector
     n_hidden: int  # number of hidden units in the model
     act_fn: List[Callable] = field(default_factory=lambda: [F.relu, F.relu])  # layer act funcs
-    # Bias terms for hidden and output layers. For a given layer, if None, biases are not learned;
-    # if scalar, all biases have the same value; if tensor, each bias has the corresponding 
-    # tensor element value.
     b1: float | Float[t.Tensor, "inst hid"] | None = None
     b2: float | Float[t.Tensor, "inst hid"] | None = 0.0
     W1_as_W2T: bool = False  # W2 is learned if False, else W2 = W1.T
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
     We_dim: int = 1000  # if We_and_Wu, this is the dim of the embedding space
     skip_cnx: bool = False  # if True, skip connection from in to out is added
-
+    dtype: t.dtype = t.float32  # dtype for all tensors in the model
 
     def __post_init__(self):
         """Ensure attribute values are valid."""
@@ -48,7 +46,6 @@ class CisConfig:
                 raise ValueError(f"{self.b2.shape=} does not match {expected_shape=}")
 
 
-
 class Cis(nn.Module):
     """A generic computation-in-superposition toy model."""
     # Some attribute type hints
@@ -57,54 +54,53 @@ class Cis(nn.Module):
     b1: Float[t.Tensor, "inst hid"]
     b2: Float[t.Tensor, "inst feat"]
 
-
     def __init__(self, cfg: CisConfig, device: t.device):
         """Initializes model params."""
         super().__init__()
         self.cfg = cfg
+        self.device = device
+        self.dtype = cfg.dtype
         n_feat = cfg.n_feat
 
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
             rand_unit_mats = [
-                F.normalize(t.randn(cfg.We_dim, cfg.n_feat), dim=0, p=2) for _ in range(cfg.n_instances)
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat, dtype=self.dtype), dim=0, p=2) for _ in range(cfg.n_instances)
             ]
             self.We = t.stack(rand_unit_mats).to(device)
             self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
             n_feat = cfg.We_dim
 
-            
-
         # Model Weights
-        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat)
-        self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1))
+        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat, dtype=self.dtype, device=device)
+        self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1)).type(self.dtype)
         if cfg.W1_as_W2T:
-            self.W2 = self.W1.T
+            self.W2 = self.W1.transpose(-1, -2)
         else:
-            self.W2 = t.empty(cfg.n_instances, n_feat, cfg.n_hidden)
-            self.W2 = nn.Parameter(nn.init.xavier_normal_(self.W2))
+            self.W2 = t.empty(cfg.n_instances, n_feat, cfg.n_hidden, dtype=self.dtype, device=device)
+            self.W2 = nn.Parameter(nn.init.xavier_normal_(self.W2)).type(self.dtype)
 
         # Model Biases
         if cfg.b1 is None:
-            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden, device=device)
+            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden, dtype=self.dtype, device=device)
         elif np.isscalar(cfg.b1):
-            self.b1 = nn.Parameter(t.full((cfg.n_instances, cfg.n_hidden), cfg.b1))
+            self.b1 = nn.Parameter(t.full((cfg.n_instances, cfg.n_hidden), cfg.b1, dtype=self.dtype))
         else:
-            self.b1 = nn.Parameter(cfg.b1)
+            self.b1 = nn.Parameter(cfg.b1.to(dtype=self.dtype, device=device))
 
         if cfg.b2 is None:
-            self.b2 = t.zeros(cfg.n_instances, n_feat, device=device)
+            self.b2 = t.zeros(cfg.n_instances, n_feat, dtype=self.dtype, device=device)
         elif np.isscalar(cfg.b2):
-            self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2))
+            self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2, dtype=self.dtype))
         else:
-            self.b2 = nn.Parameter(cfg.b2)
+            self.b2 = nn.Parameter(cfg.b2.to(dtype=self.dtype, device=device))
         
         self.to(device)
-
 
     def forward(
         self, 
         x: Float[t.Tensor, "batch inst feat"],
+        res_factor: float = 1.0,  # factor for skip connection
     ) -> Float[t.Tensor, "batch inst feat"]:
         """Runs a forward pass through the model."""
         # Embedding layer
@@ -121,7 +117,7 @@ class Cis(nn.Module):
         
         # Skip connection
         if self.cfg.skip_cnx:
-            y += x
+            y += (x * res_factor)
         
         # Unembedding layer
         if self.cfg.We_and_Wu:
@@ -129,7 +125,8 @@ class Cis(nn.Module):
 
         return y
 
-    # Note:
-    # Feature sparsity should be used in a function that generates batches.
-    # Feature importance should be used in a loss function.
-    # Both of these should be defined outside of this class, and called in a training loop.
+
+# Note:
+# Feature sparsity should be used in a function that generates batches.
+# Feature importance should be used in a loss function.
+# Both of these should be defined outside of this class, and called in a training loop.
