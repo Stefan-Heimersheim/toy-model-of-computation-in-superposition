@@ -55,9 +55,9 @@ def plot_weight_bars(
     ax.set_xlabel(xax)
     ax.set_ylabel("Weight Value")
     if xax == 'feature':
-        fig.get_axes()[0].set_title(f"{model_name} at FeatProb = {feat_prob} \n neuron weights per feature")
+        fig.get_axes()[0].set_title(f"{model_name} at FeatProb ={feat_prob:.2f} \n neuron weights per feature")
     else: 
-        fig.get_axes()[0].set_title(f"{model_name} at FeatProb = {feat_prob} \n feature weights per neuron")
+        fig.get_axes()[0].set_title(f"{model_name} at FeatProb = {feat_prob:.2f} \n feature weights per neuron")
     
     return fig
 
@@ -99,7 +99,7 @@ def plot_input_output_response(
         asnumpy(vals), asnumpy(vals + t.relu(vals)), color="red", linestyle="--", label="target: x + relu(x)"
     )
     ax.set_title(
-        f"{model_name} at featProb = {feat_prob}" 
+        f"{model_name} at featProb = {feat_prob:.2f}" 
         + f"\n input-output response per feature  (loss = {losses[-1]:.4f})"
     )
     ax.legend()
@@ -141,7 +141,7 @@ def plot_loss_across_sparsities(
     plt.legend(loc = "best", fontsize = 16)
     plt.ylabel('Loss/Feature probability ')
     trained_probability = 1 - trained_sparsity
-    plt.title(f"{model_name} trained at featProb = {trained_probability}:\n loss vs input probability")
+    plt.title(f"{model_name} trained at featProb = {trained_probability:.2f}:\n loss vs input probability")
     plt.tight_layout()
     return fig
 
