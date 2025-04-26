@@ -29,6 +29,7 @@ class CisConfig:
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
     We_dim: int = 1000  # if We_and_Wu, this is the dim of the embedding space
     skip_cnx: bool = False  # if True, skip connection from in to out is added
+    noise_var: float | None = None  # noise variance for the noise matrix
     dtype: t.dtype = t.float32  # dtype for all tensors in the model
 
     def __post_init__(self):
@@ -70,6 +71,13 @@ class Cis(nn.Module):
             self.We = t.stack(rand_unit_mats).to(device)
             self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
             n_feat = cfg.We_dim
+        
+        # Noise matrix
+        if cfg.noise_var:
+            self.Wn = t.eye(n_feat, dtype=self.dtype, device=device).expand(cfg.n_instances, -1, -1)
+            noise = t.randn_like(self.Wn, dtype=self.dtype, device=device) * cfg.noise_var
+            noise.masked_fill_(self.Wn.to(bool), 0.0)
+            self.Wn += noise
 
         # Model Weights
         self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat, dtype=self.dtype, device=device)
@@ -122,6 +130,10 @@ class Cis(nn.Module):
         # Unembedding layer
         if self.cfg.We_and_Wu:
             y = einsum(y, self.Wu, "batch inst emb, inst feat emb -> batch inst feat")
+
+        # Noise layer
+        if self.cfg.noise_var:
+            y += einsum(x, self.Wn, "batch inst feat, inst feat feat_out -> batch inst feat_out")
 
         return y
 
