@@ -35,7 +35,7 @@ def in_out_response(
     )
     return Y[t.arange(n_feat), :, t.arange(n_feat)]
 
-def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsity=None, n_steps=None):
+def performance_across_sparsities(sparsities, model, noisy_label = False, loss_data=None, feat_sparsity=None, n_steps=None):
 
     if loss_data is None:
         loss_data = []  # will store mean loss data
@@ -46,7 +46,7 @@ def performance_across_sparsities(sparsities, model, loss_data=None, feat_sparsi
     
         with t.no_grad():
             # generate examples of inputs
-            x, y_true = model.gen_batch_reluPlusX (n_examples, s)
+            x, y_true = model.gen_batch_reluPlusX (n_examples, s, noisy_label)
             
             # compute mean loss
             y = model.forward(x)
