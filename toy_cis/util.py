@@ -49,7 +49,7 @@ def performance_across_sparsities(sparsities, model, noisy_label = False, loss_d
             x, y_true = model.gen_batch_reluPlusX (n_examples, s, noisy_label)
             
             # compute mean loss
-            y = model.forward(x)
+            y, h, y1, y2 = model.forward(x)
             #active_weight, inactive_weight = 10, 1
             #weights = t.where(y_true == 1, active_weight, inactive_weight)
             #loss = weights * (y - y_true) ** 2
