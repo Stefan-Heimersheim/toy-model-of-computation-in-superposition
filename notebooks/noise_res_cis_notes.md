@@ -14,13 +14,13 @@ First we saw that if we make $W_n$  an  $n \times n$ identity with random gaussi
 
 Then we saw that a symmetric $W_n$ , with the same gaussian noise in each triangle, helps the model learn even better. Adding symmetric noise couples features, so big residual errors line up along a few directions (i.e. the top eigenvectors of $W_n$ have larger eigenvalues than in the asymmetric case), which drops the effective rank of the residual target, making it easier to approximate by the model's weights.
 
-We can think of the neuron weight matrices, with rank $m$, as trying to approximate the greater rank of the target (rank $n$, shape $b \times n$), and since the relative effective ranks of the labels in the different cases we've explored is:
+We can think of the neuron weight matrices, with rank $m$, as trying to approximate the greater rank of the target (rank $n$, shape $b \times n$), and since the relative effective ranks of the targets in the different cases we've explored is:
 
 $$
 \begin{aligned}
 &relu(x) \\
-&> relu(x) - W_{n-asymmetric} \hspace{0.25em} x \\
-&> relu(x) - W_{n-symmetric} \hspace{0.25em} x
+&> relu(x) - W_{n,} \hspace{0.25em} x \\
+&> relu(x) - W_{n,sym} \hspace{0.25em} x
 \end{aligned}
 $$
 
@@ -28,7 +28,7 @@ it is easier to approximate the latter cases. In this case, the reduced effectiv
 
 i.e. ***the residual target*** $r(x) = relu(x) - W_n x$ ***becomes approximately low-rank and is therefore easier to learn than*** $relu(x)$.
 
-We can test this in an additional case, by using a $W_n$ that is even lower effective rank. To do this, we can use rank-r inflation of the top $r$ eigenvalues of $W_n$ to push the residual target's energy into an effective $r$-dimensional subspace, decreasing its effective rank. This looks like: $W_n = I + \alpha U U^T$ , where $U$ is an orthonormal matrix of rank $r < n$ and $\alpha$ is a small noise coefficient.
+We can test this in an additional case, by using a $W_n$ that is even lower effective rank. To do this, we can use rank-r inflation of the top $r$ eigenvalues of $W_n$ to push the residual target's energy into an effective $r$-dimensional subspace, decreasing its effective rank. This looks like: $W_n = I + \alpha U U^T$ , where $U$ is shape $n \times r$ with orthonormal columns and rank $r < n$, and $\alpha$ is a small noise coefficient.
 
 In code, this looks like:
 
@@ -38,14 +38,16 @@ U = t.randn(n_feat, r, device=device)
 # Batched QR ⇒ UᵀU = I_r 
 U, _ = t.linalg.qr(U, mode="reduced")
 # Add rank-r outer prod: I + αUUᵀ
-self.Wn += alpha * (einsum(U, U, "feat r, feat2 r -> feat feat2"))
+Wn += alpha * (einsum(U, U, "feat r, feat2 r -> feat feat2"))
 # Keep unit diagonal
 idx = t.arange(n_feat, device=device)
-self.Wn[:, idx, idx] = 1.0
+Wn[idx, idx] = 1.0
 
-... 
+...
 
-y += einsum(x, self.Wn, "batch inst feat, inst feat feat_out -> batch inst feat_out")
+h = einsum(x, W1, "batch feat, hid feat -> batch hid")
+y = einsum(h, W2, "batch hid, feat hid -> batch feat"
+y += einsum(x, Wn, "batch feat, feat feat_out -> batch feat_out")
 ```
 
 In this case, the model's loss is indeed even lower.
