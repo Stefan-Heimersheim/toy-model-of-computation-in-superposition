@@ -2,6 +2,8 @@ $m$ = number of neurons <br>
 $n$ = number of features (i.e. input size and output size) <br>
 $b$ = batch size
 
+---
+
 We've observed that CiS does not occur in a one-layer, $m$ neuron MLP model trained to perform $relu(x)$ for each of $n$ features where $n > m$; the model cannot learn something better than the "naive loss", where one neuron is dedicated to performing $relu$ for one feature, and all other $m - n$ features are not represented. 
 
 However, if we add a "residual noise term" in the form of a $n \times n$ matrix $W_n$ that gets multiplied by $x$ and added to the hidden layer output, then the model *can* learn CiS and yield a loss lower than the naive loss.
