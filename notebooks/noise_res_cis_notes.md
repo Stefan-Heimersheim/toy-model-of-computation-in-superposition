@@ -19,8 +19,8 @@ We can think of the neuron weight matrices, with rank $m$, as trying to approxim
 $$
 \begin{aligned}
 &relu(x) \\
-&> relu(x) - W_{n,} \hspace{0.25em} x \\
-&> relu(x) - W_{n,sym} \hspace{0.25em} x
+&> relu(x) - W_{n} \hspace{0.2em} x \\
+&> relu(x) - W_{n_{sym}} \hspace{0.2em} x
 \end{aligned}
 $$
 
