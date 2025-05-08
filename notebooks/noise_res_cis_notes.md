@@ -24,9 +24,9 @@ $$
 
 it is easier to approximate the latter cases. In this case, the reduced effective rank also corresponds to higher condition numbers, as we get larger eigenvalues. 
 
-i.e. ***the residual target $r(x) = relu(x) - W_n x$ becomes approximately low-rank and is therefore easier to learn than $relu(x)$.***
+i.e. ***the residual target*** $r(x) = relu(x) - W_n x$ ***becomes approximately low-rank and is therefore easier to learn than*** $relu(x)$.
 
-We can test this in an additional case, by using a $W_n$ that is even lower effective rank. To do this, we can use *rank-r inflation* of the top $r$ eigenvalues of $W_n$ to push the residual target's energy into an effective $r$-dimensional subspace, lowering its effective rank. This looks like: $W_n = I + \alpha U U^T$ , where $U$ is an orthonormal matrix of rank $r < n$ and $\alpha$ is a small noise coefficient.
+We can test this in an additional case, by using a $W_n$ that is even lower effective rank. To do this, we can use rank-r inflation of the top $r$ eigenvalues of $W_n$ to push the residual target's energy into an effective $r$-dimensional subspace, lowering its effective rank. This looks like: $W_n = I + \alpha U U^T$ , where $U$ is an orthonormal matrix of rank $r < n$ and $\alpha$ is a small noise coefficient.
 
 In code, this looks like:
 
