@@ -48,6 +48,6 @@ self.Wn[:, idx, idx] = 1.0
 y += einsum(x, self.Wn, "batch inst feat, inst feat feat_out -> batch inst feat_out")
 ```
 
-In this case, the model's loss is even lower.
+In this case, the model's loss is indeed even lower.
 
 One final point is that, although it appears that using a noise matrix that reduces the effective rank of the residual target can indeed allow models to perform CiS, it is also possible for models to "enter another mode" and "abuse" the noise matrix to yield low loss, but by doing something that we would clearly not call CiS (e.g. we see wacky input-output responses).
