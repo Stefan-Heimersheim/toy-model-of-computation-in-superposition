@@ -31,16 +31,14 @@ We replicate and extend experiments on a toy model introduced by [Apollo Researc
            │
            ├──────────────┐
            ▼              ▼
-          W_in        Residual: W_noise × x
+           │              │
+          W_in            |
            │              │
            ▼              │
-         ReLU             │
+         ReLU       Residual: Wn × x
            │              │
            ▼              │
-        W_out             │
-           │              │
-           ▼              ▼
-       MLP Output      Residual output
+        W_out (MLP out)   │
            │              │
            └──────┬───────┘
                   ▼
@@ -68,6 +66,6 @@ In the root directory, just run `pixi install --manifest-path ./pyproject.toml` 
 
 * [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html): Anthropic's toy model of superposition
 * [Cammarata et al. (2020)](https://transformer-circuits.pub/2020/polysemanticity/index.html): Polysemanticity and neuron capacity
-* [Millière et al. (2024)](https://arxiv.org/abs/2403.00986): Computation in Superposition in Sparse MLPs
+* [Hänni et al. (2024)](https://arxiv.org/abs/2408.05451): Mathematical models of computation in superposition
 * [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition): Apollo Research's toy model of "compressed computation". 
 
