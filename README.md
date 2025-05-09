@@ -1,14 +1,13 @@
-# Investigating Computation in Superposition in Apollo Research’s Toy Model
-
-This repo contains code and experiments exploring **computation in superposition** in a toy model of "compressed computation" introduced by Apollo Research in  [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition).
+# Investigating Computation in Superposition in Toy Models
 
 ## Background
+This repo contains code and experiments exploring **computation in superposition** in toy neural networks, including variants of the "compressed computation" model introduced by Apollo Research in [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition), and "toy models of superposition" introduced by Anthropic in [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html).
 
-Neural networks can represent more features than they have neurons by *storing information in superposition* ([Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html)), this allows networks to compress and reconstruct sparse inputs by distributing feature representations across multiple neurons.
+Neural networks can represent more features than they have neurons by *storing information in superposition* ([Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html)): this allows networks to compress and reconstruct sparse inputs by distributing feature representations across multiple neurons.
 
 The authors also show a motif by which neural networks can **perform computation in superposition (CiS)**, compute more functions than would be expected if each neuron participated in only one computation. Both phenomena emerge in **sparse input regimes**, where only a few features are active at a time.
 
-Inspired by [Millière et al. (2024)](https://arxiv.org/abs/2403.00986), we adopt a **stricter definition of computation in superposition**:
+Inspired by [Hänni et al. (2024)](https://arxiv.org/abs/2408.05451), we adopt a **stricter definition of computation in superposition**:
 
 > A network exhibits computation in superposition if it performs more *computations* than it has *nonlinearities*.
 
