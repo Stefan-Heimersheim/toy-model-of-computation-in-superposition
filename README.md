@@ -32,13 +32,7 @@ We replicate and extend experiments on a toy model introduced by [Apollo Researc
            ├──────────────┐
            ▼              ▼
            │              │
-          W_in            |
-           │              │
-           ▼              │
-         ReLU       Residual: Wn × x
-           │              │
-           ▼              │
-        W_out (MLP out)   │
+     MLP (ReLUs)    Residual: (Wn @ x)
            │              │
            └──────┬───────┘
                   ▼
