@@ -29,7 +29,7 @@ class CisConfig:
     We_and_Wu: bool = False  # if True, use fixed, random orthogonal embed and unembed matrices
     We_dim: int = 1000  # if We_and_Wu, this is the dim of the embedding space
     skip_cnx: bool = False  # if True, skip connection from in to out is added
-    noise_var: float | None = None  # noise variance for the noise matrix
+    noise_params: dict | None = None  # params for the noise matrix
     dtype: t.dtype = t.float32  # dtype for all tensors in the model
 
     def __post_init__(self):
@@ -66,18 +66,49 @@ class Cis(nn.Module):
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
             rand_unit_mats = [
-                F.normalize(t.randn(cfg.We_dim, cfg.n_feat, dtype=self.dtype), dim=0, p=2) for _ in range(cfg.n_instances)
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat, dtype=self.dtype), dim=0, p=2)
+                for _ in range(cfg.n_instances)
             ]
             self.We = t.stack(rand_unit_mats).to(device)
             self.Wu = rearrange(self.We, "inst emb feat -> inst feat emb")
             n_feat = cfg.We_dim
         
         # Noise matrix
-        if cfg.noise_var:
-            self.Wn = t.eye(n_feat, dtype=self.dtype, device=device).expand(cfg.n_instances, -1, -1)
-            noise = t.randn_like(self.Wn, dtype=self.dtype, device=device) * cfg.noise_var
-            noise.masked_fill_(self.Wn.to(bool), 0.0)
-            self.Wn += noise
+        if cfg.noise_params is not None:
+            self.noise_coeff = cfg.noise_params["noise_coeff"]
+            if cfg.noise_params.get("learned", False):
+                self.noise_coeff = nn.Parameter(
+                    t.tensor(self.noise_coeff, dtype=self.dtype, device=device)
+                )
+            
+            matrix_type = cfg.noise_params["matrix_type"]
+            self.noise_base = t.zeros(
+                cfg.n_instances, cfg.n_feat, cfg.n_feat, dtype=self.dtype, device=device
+            )
+            
+            if matrix_type == "asymmetric":
+                # Fill with random noise except on diagonal
+                self.noise_base = t.randn_like(self.noise_base)
+                idx = t.arange(cfg.n_feat, device=device)
+                self.noise_base[:, idx, idx] = 0.0
+                
+            elif matrix_type == "symmetric":
+                # Create a symmetric noise matrix with zeros on diagonal
+                tril_idxs = t.tril_indices(cfg.n_feat, cfg.n_feat, offset=-1)
+                base_noise = t.randn(cfg.n_instances, tril_idxs.shape[1], device=device)
+                self.noise_base[:, tril_idxs[0], tril_idxs[1]] = base_noise
+                self.noise_base[:, tril_idxs[1], tril_idxs[0]] = base_noise
+                
+            elif matrix_type == "rank-r":
+                # Precompute rank-r base with zeros on diagonal
+                r = cfg.noise_params["r"]
+                Q, _ = t.linalg.qr(t.randn(cfg.n_instances, cfg.n_feat, r, device=device), mode="reduced")
+                self.noise_base = einsum(Q, Q, "inst feat r, inst feat2 r -> inst feat feat2")
+                idx = t.arange(cfg.n_feat, device=device)
+                self.noise_base[:, idx, idx] = 0.0
+            
+            elif matrix_type != "identity":
+                raise ValueError(f"Unknown noise matrix type: {matrix_type}")
 
         # Model Weights
         self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat, dtype=self.dtype, device=device)
@@ -124,16 +155,26 @@ class Cis(nn.Module):
         y = self.cfg.act_fn[1](y + self.b2)
         
         # Skip connection
-        if self.cfg.skip_cnx:
+        if self.cfg.skip_cnx and not self.cfg.noise_params:  # avoid 2x skip cnx if noise
             y += (x * res_factor)
         
         # Unembedding layer
         if self.cfg.We_and_Wu:
             y = einsum(y, self.Wu, "batch inst emb, inst feat emb -> batch inst feat")
 
-        # Noise layer
-        if self.cfg.noise_var:
-            y += einsum(x, self.Wn, "batch inst feat, inst feat feat_out -> batch inst feat_out")
+        # Noise residual
+        if self.cfg.noise_params is not None:
+            # Update the noise matrix by adding identity and scaled noise_base
+            Wn = t.eye(self.cfg.n_feat, dtype=self.dtype, device=self.device).expand(
+                self.cfg.n_instances, -1, -1
+            )
+            Wn = Wn + self.noise_coeff * self.noise_base
+                
+            y += einsum(
+                x * res_factor,
+                Wn, 
+                "batch inst feat, inst feat feat_out -> batch inst feat_out"
+            )
 
         return y
 
