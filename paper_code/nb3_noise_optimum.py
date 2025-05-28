@@ -23,8 +23,8 @@ sym_losses = []
 asym_losses = []
 for i, (sym_noisy_model, sym_noisy_dataset, asym_noisy_model, asym_noisy_dataset) in tqdm(enumerate(zip(sym_models, sym_datasets, asym_models, asym_datasets, strict=True)), total=len(sym_models), desc="Evaluating"):
     print("Iteration", i + 1, "of", len(sym_models))
-    sym_loss = np.mean([evaluate(sym_noisy_model, sym_noisy_dataset, batch_size=1_000_000) for _ in range(100)])
-    asym_loss = np.mean([evaluate(asym_noisy_model, asym_noisy_dataset, batch_size=1_000_000) for _ in range(100)])
+    sym_loss = evaluate(sym_noisy_model, sym_noisy_dataset, n_samples=100_000_000)
+    asym_loss = evaluate(asym_noisy_model, asym_noisy_dataset, n_samples=10_000_000)
     sym_losses.append(sym_loss)
     asym_losses.append(asym_loss)
 
@@ -33,7 +33,7 @@ ax.plot(noise_levels, np.array(sym_losses) / 0.01, marker="o", label="Symmetric 
 ax.plot(noise_levels, np.array(asym_losses) / 0.01, marker="o", label="Asymmetric noise", color="C3")
 ax.axhline(0.083, color="k", ls="--")
 ax.set_xlabel("Dataset noise scale")
-ax.set_ylabel("Loss per feature L/p")
+ax.set_ylabel("Loss per feature L / p")
 ax.legend()
 fig.savefig("nb3_noise_optimum.png")
 plt.show()

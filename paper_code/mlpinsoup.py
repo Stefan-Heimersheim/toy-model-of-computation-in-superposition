@@ -1,3 +1,4 @@
+import math
 import time
 from abc import abstractmethod
 from collections.abc import Iterable
@@ -185,13 +186,18 @@ def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int
     return losses
 
 
-def evaluate(model: Callable[[Float[Tensor, "batch n_features"]], Float[Tensor, "batch n_features"]], dataset: SparseDataset, batch_size: int | None = None) -> float:
-    batch_size = batch_size or int(1_000 / dataset.p)
+def evaluate(model: Callable[[Float[Tensor, "batch n_features"]], Float[Tensor, "batch n_features"]], dataset: SparseDataset, n_samples: int | None = None, batch_size: int = 100_000) -> float:
+    frac_zero_samples = (1 - dataset.p) ** dataset.n_features
+    n_samples = n_samples or int(1_000_000 / (1 - frac_zero_samples))
+    n_batches = math.ceil(n_samples / batch_size)
     with torch.no_grad():
-        inputs, labels = dataset.generate_batch(batch_size)
-        outputs = model(inputs)
-        loss = ((outputs - labels) ** 2).mean()
-    return loss.item()
+        losses = []
+        for _ in range(n_batches):
+            inputs, labels = dataset.generate_batch(batch_size)
+            outputs = model(inputs)
+            loss = ((outputs - labels) ** 2).mean()
+            losses.append(loss.item())
+    return np.mean(losses)
 
 
 def plot_loss_of_input_sparsity(
@@ -202,8 +208,10 @@ def plot_loss_of_input_sparsity(
     batch_size: int | None = None,
     labels: list[str] | None = None,
     colors: list[str] | None = None,
+    linestyles: list[str] | None = None,
     ax: plt.Axes | None = None,
     highlight_ps: list[float] | float | None = None,
+    show_naive: bool = True,
 ) -> plt.Figure:
     fig, ax = plt.subplots(constrained_layout=True) if ax is None else (ax.get_figure(), ax)
     models = [models] if isinstance(models, MLP) else models
@@ -224,19 +232,21 @@ def plot_loss_of_input_sparsity(
             losses = []
             for p in ps:
                 dataset.set_p(p)
-                loss = np.mean([evaluate(model, dataset, batch_size=batch_size) for _ in range(n_batches)])
+                loss = evaluate(model, dataset)
                 losses.append(loss)
         adj_losses = np.array(losses) / ps
         color = colors[i] if colors else None
+        ls = linestyles[i] if linestyles else None
         label = labels[i] if labels else None
-        ax.plot(ps, adj_losses, label=label, color=color)
+        ax.plot(ps, adj_losses, label=label, color=color, ls=ls)
         if highlight_ps is not None:
             with torch.no_grad():
                 p = highlight_ps[i]
                 dataset.set_p(p)
-                loss_at_p = np.mean([evaluate(model, dataset, batch_size=batch_size) for _ in range(n_batches)])
+                loss_at_p = evaluate(model, dataset)
                 highlight_adj_losses.append(loss_at_p / p)
-    ax.plot(ps, naive_adj_losses, color="k", ls="--")
+    if show_naive:
+        ax.plot(ps, naive_adj_losses, color="k", ls="--")
     if highlight_ps is not None:
         ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":")
     ax.set_xscale("log")
