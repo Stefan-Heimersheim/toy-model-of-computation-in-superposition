@@ -1,19 +1,14 @@
 import time
 from abc import abstractmethod
 from collections.abc import Iterable
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable
 
 import einops
 import matplotlib.pyplot as plt
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import torch
 import torch.nn.functional as F
 from jaxtyping import Float
-from plotly.subplots import make_subplots
 from torch import Tensor, nn
 from tqdm import tqdm
 
@@ -149,21 +144,25 @@ class ResidTransposeDataset(SparseDataset):
         self.W_E: Float[Tensor, "n_features d_embed"] = torch.randn(self.n_features, d_embed, device=self.device, generator=self.generator)
         self.W_E = F.normalize(self.W_E, dim=1)
 
+    @property
+    def M(self) -> Float[Tensor, "n_features n_features"]:
+        return einops.einsum(self.W_E, self.W_E.T, "n_in d_embed, d_embed n_out -> n_in n_out") - torch.eye(self.n_features, self.n_features, device=self.device)
+
     def _generate_labels(self, inputs: Float[Tensor, "batch n_features"]) -> Float[Tensor, "batch n_features"]:
-        M = einops.einsum(self.W_E, self.W_E.T, "n_in d_embed, d_embed n_out -> n_in n_out") - torch.eye(self.n_features, self.n_features, device=self.device)
-        return self.relu(inputs) + einops.einsum(M, inputs, "n_in n_out, batch n_in -> batch n_out")
+        return self.relu(inputs) + einops.einsum(self.M, inputs, "n_in n_out, batch n_in -> batch n_out")
 
 
 class NoisyDataset(SparseDataset):
     """Dataset that generates inputs and labels = ReLU(inputs) + M @ inputs."""
 
-    def __init__(self, n_features: int, p: float, device: str = None, seed: int | None = None, symmetric: bool = False, scale: float = 0.0225, exactly_one_active_feature: bool = False):
+    def __init__(self, n_features: int, p: float, device: str = None, seed: int | None = None, symmetric: bool = False, zero_diagonal: bool = True, scale: float = 0.0225, exactly_one_active_feature: bool = False):
         super().__init__(n_features, p, device=device, seed=seed, exactly_one_active_feature=exactly_one_active_feature)
         self.M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
-        self.M.fill_diagonal_(0)
-        if symmetric:
-            self.M = self.M + self.M.T
         self.M = self.M * scale
+        if zero_diagonal:
+            self.M.fill_diagonal_(0)
+        if symmetric:
+            self.M = torch.triu(self.M) + torch.triu(self.M, diagonal=1).T
 
     def _generate_labels(self, inputs: Float[Tensor, "batch n_features"]) -> Float[Tensor, "batch n_features"]:
         return self.relu(inputs) + einops.einsum(self.M, inputs, "n_out n_in, batch n_in -> batch n_out")
@@ -180,8 +179,9 @@ def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int
         loss = ((outputs - labels) ** 2).mean()
         loss.backward()
         optimizer.step()
-        pbar.set_postfix({"loss": loss.item()})
         losses.append(loss.item())
+        if step % 100 == 0:
+            pbar.set_postfix({"loss": loss.item()})
     return losses
 
 
@@ -203,9 +203,11 @@ def plot_loss_of_input_sparsity(
     labels: list[str] | None = None,
     colors: list[str] | None = None,
     ax: plt.Axes | None = None,
+    highlight_ps: list[float] | float | None = None,
 ) -> plt.Figure:
     fig, ax = plt.subplots(constrained_layout=True) if ax is None else (ax.get_figure(), ax)
     models = [models] if isinstance(models, MLP) else models
+    highlight_ps = [highlight_ps] if isinstance(highlight_ps, float) else highlight_ps
     datasets = [datasets] * len(models) if isinstance(datasets, SparseDataset) else datasets
 
     n_features = models[0].n_features
@@ -216,17 +218,27 @@ def plot_loss_of_input_sparsity(
         return (n_features - d_mlp) / n_features * p / 6
 
     naive_adj_losses = naive_loss(n_features, d_mlp, ps) / ps
-
+    highlight_adj_losses = []
     for i, (model, dataset) in tqdm(enumerate(zip(models, datasets, strict=True)), total=len(models), desc="Plotting"):
         with torch.no_grad():
             losses = []
             for p in ps:
-                dataset.p = p
+                dataset.set_p(p)
                 loss = np.mean([evaluate(model, dataset, batch_size=batch_size) for _ in range(n_batches)])
                 losses.append(loss)
         adj_losses = np.array(losses) / ps
-        ax.plot(ps, adj_losses, label=labels[i] if labels else None, color=colors[i] if colors else None)
+        color = colors[i] if colors else None
+        label = labels[i] if labels else None
+        ax.plot(ps, adj_losses, label=label, color=color)
+        if highlight_ps is not None:
+            with torch.no_grad():
+                p = highlight_ps[i]
+                dataset.set_p(p)
+                loss_at_p = np.mean([evaluate(model, dataset, batch_size=batch_size) for _ in range(n_batches)])
+                highlight_adj_losses.append(loss_at_p / p)
     ax.plot(ps, naive_adj_losses, color="k", ls="--")
+    if highlight_ps is not None:
+        ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Feature probability p")
