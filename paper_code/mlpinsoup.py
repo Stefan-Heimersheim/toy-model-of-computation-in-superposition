@@ -17,6 +17,7 @@ from plotly.subplots import make_subplots
 from torch import Tensor, nn
 from tqdm import tqdm
 
+
 class MLP(nn.Module):
     """A simple MLP module without biases."""
 
@@ -169,7 +170,7 @@ class NoisyDataset(SparseDataset):
 
 
 def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int = 10_000) -> list[float]:
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-2)
     losses = []
     pbar = tqdm(range(steps), desc="Training")
     for step in pbar:
