@@ -47,7 +47,7 @@ nmf_model_cosine_sims = [get_cosine_sim_for_direction(nmf_model, U[:, i]) for i 
 trained_model_cosine_sims = [get_cosine_sim_for_direction(trained_model, U[:, i]) for i in range(n_features)]
 half_identity_model_cosine_sims = [get_cosine_sim_for_direction(half_identity_model, U[:, i]) for i in range(n_features)]
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(constrained_layout=True)
 ax.plot(trained_model_cosine_sims, label=f"Trained, loss={trained_final_loss / p:.3f}")
 ax.plot(nmf_model_cosine_sims, label=f"NMF, loss={nmf_final_loss / p:.3f}")
 ax.plot(half_identity_model_cosine_sims, label=f"Half identity, loss={half_identity_final_loss / p:.3f}")
@@ -56,4 +56,5 @@ ax.set_title("Testing how well SVD directions are captured by $W_{\\rm out} W_{\
 ax.set_xlabel("Singular vector index $i$")
 ax.set_ylabel("Cosine similarity of $v_i$ with $W_{\\rm out} W_{\\rm in} v_i$")
 ax.legend(loc="lower left")
+fig.savefig("nb5_svd_comparison.png")
 plt.show()

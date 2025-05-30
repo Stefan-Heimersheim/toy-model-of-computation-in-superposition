@@ -1,4 +1,7 @@
+import matplotlib.pyplot as plt
 import numpy as np
+import torch
+import torch.nn.functional as F
 from mlpinsoup import MLP, ResidTransposeDataset, plot_loss_of_input_sparsity, train
 
 # Input feature probabilities to test
@@ -22,3 +25,21 @@ for str_p in str_train_ps:
 train_ps = [float(p) for p in str_train_ps]
 fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps)
 fig.savefig("nb1_sparsity_regimes.png")
+
+# Plot the input-output behaviour of one sparse and dense model, for illustration
+fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5))
+fig.suptitle("Input-output behaviour for individual features")
+models[0].plot_input_output_behaviour(ax1)
+ax1.set_title("p=" + str_train_ps[0])
+x = torch.linspace(-1, 1, 100)
+ax1.plot(x, F.relu(x), color="tab:red", ls="--")
+ax2.plot(x, F.relu(x), color="tab:red", ls="--")
+# Colorbar, viridis palette
+norm = plt.Normalize(vmin=0, vmax=100)
+sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
+fig.colorbar(sm, ax=ax2, fraction=0.046, pad=0.04, label="Feature")
+
+models[-1].plot_input_output_behaviour(ax2)
+ax2.set_title("p=" + str_train_ps[-1])
+fig.savefig("nb1_input_output_behaviour.png")
+plt.show()

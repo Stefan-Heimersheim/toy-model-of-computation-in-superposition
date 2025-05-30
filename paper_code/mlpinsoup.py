@@ -55,7 +55,7 @@ class MLP(nn.Module):
 
     def plot_weights(self) -> plt.Figure:
         """Plot the weights of the MLP."""
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        fig, axes = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5))
         cmap = plt.cm.get_cmap("RdBu")
 
         axes[0].set_title("W_in")
@@ -71,20 +71,19 @@ class MLP(nn.Module):
 
         return fig
 
-    def plot_input_output_behaviour(self) -> plt.Figure:
+    def plot_input_output_behaviour(self, ax: plt.Axes | None = None) -> plt.Figure:
         """Plot the input-output behaviour of the MLP."""
-        fig, axes = plt.subplots()
+        fig, ax = plt.subplots(constrained_layout=True) if ax is None else (ax.get_figure(), ax)
         cmap = plt.cm.get_cmap("viridis")
         for i in range(self.n_features):
             test_input = torch.zeros(1024, self.n_features, device=self.device)
             test_input[:, i] = torch.linspace(-1, 1, 1024, device=self.device)
             test_output = self(test_input).detach()
             c = cmap(i / self.n_features)
-            axes.plot(test_input[:, i].cpu(), test_output[:, i].cpu(), color=c)
-        axes.legend()
-        axes.set_xlabel("Input")
-        axes.set_ylabel("Output")
-        axes.set_title("Input-output behaviour")
+            ax.plot(test_input[:, i].cpu(), test_output[:, i].cpu(), color=c)
+        ax.set_xlabel("Input")
+        ax.set_ylabel("Output")
+        fig.suptitle("Input-output behaviour for individual features")
         return fig
 
 
