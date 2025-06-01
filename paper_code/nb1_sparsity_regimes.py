@@ -79,10 +79,10 @@ def plot_weight_bars(W: Float[Tensor, "dim1 dim2"], bar_label: str = "MLP neuron
     return ax
 
 
-fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(12, 5), sharey=True)
+fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5), sharey=True)
 fig.suptitle(r"Model weights $W_{\rm in} \odot W_{\rm out}$ stacked by neuron")
-for model, ax in zip([models[0], models[-1]], [ax1, ax2]):
-    ax.set_title("p=" + str_train_ps[0])
+for model, ax, p in zip([models[0], models[-1]], [ax1, ax2], [str_train_ps[0], str_train_ps[-1]]):
+    ax.set_title("p=" + p)
     w_in: Float[Tensor, "n_features d_mlp"] = model.w_in.cpu().detach()
     w_out: Float[Tensor, "d_mlp n_features"] = model.w_out.cpu().detach()
     W: Float[Tensor, "d_mlp n_features"] = einops.einsum(w_in, w_out, "n_features d_mlp, d_mlp n_features -> d_mlp n_features")

@@ -14,7 +14,7 @@ def make_dark_color(color):
 
 
 bias_ps = ["0.001", "0.01", "0.1", "1"]
-bias_colors = ["C0", "C3", "C6", "C9"]
+bias_colors = ["C0", "C1", "C2", "C3"]
 bias_strengths = np.geomspace(0.002, 0.05, 100)
 dataset = CleanDataset(n_features=100, p=0)
 optimal_bias_strengths = {}
@@ -54,7 +54,7 @@ plt.show()
 plot_ps = np.geomspace(0.001, 1, 100)
 train_ps = ["0.001", "0.01", "0.1", "1"]
 tab20 = plt.get_cmap("tab20")
-colors = [tab20(2 * i + 1) for i in [0, 3, 6, 9]]
+colors = [tab20(2 * i + 1) for i in [0, 1, 2, 3]]
 linestyles = ["-", "-", "-", "-"]
 clean_dataset = CleanDataset(n_features=100, p=0)
 
@@ -70,7 +70,7 @@ for str_p in train_ps:
     trained_labels.append("p=" + str_p)
 
 handcoded_models, handcoded_labels = [], []
-handcoded_colors = [tab20(2 * i) for i in [0, 3, 6, 9]]
+handcoded_colors = [tab20(2 * i) for i in [0, 1, 2, 3]]
 handcoded_linestyles = ["--", "--", "--", "--"]
 for bias_p in bias_ps:
     naive_model = MLP(n_features=100, d_mlp=50)

@@ -49,8 +49,8 @@ half_identity_model_cosine_sims = [get_cosine_sim_for_direction(half_identity_mo
 
 fig, ax = plt.subplots(constrained_layout=True)
 ax.plot(trained_model_cosine_sims, label=f"Trained, loss={trained_final_loss / p:.3f}")
-ax.plot(nmf_model_cosine_sims, label=f"NMF, loss={nmf_final_loss / p:.3f}")
-ax.plot(half_identity_model_cosine_sims, label=f"Half identity, loss={half_identity_final_loss / p:.3f}")
+# ax.plot(nmf_model_cosine_sims, label=f"NMF, loss={nmf_final_loss / p:.3f}")
+# ax.plot(half_identity_model_cosine_sims, label=f"Half identity, loss={half_identity_final_loss / p:.3f}")
 ax.plot(svd_model_cosine_sims, label=f"SVD, loss={svd_final_loss / p:.3f}")
 ax.set_title("Testing how well SVD directions are captured by $W_{\\rm out} W_{\\rm in}$")
 ax.set_xlabel("Singular vector index $i$")
