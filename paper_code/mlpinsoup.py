@@ -155,21 +155,49 @@ class ResidTransposeDataset(SparseDataset):
 class NoisyDataset(SparseDataset):
     """Dataset that generates inputs and labels = ReLU(inputs) + M @ inputs."""
 
-    def __init__(self, n_features: int, p: float, device: str = None, seed: int | None = None, symmetric: bool = False, zero_diagonal: bool = True, scale: float = 0.0225, exactly_one_active_feature: bool = False):
+    def __init__(
+        self,
+        n_features: int,
+        p: float,
+        device: str = None,
+        seed: int | None = None,
+        rank: int | None = None,
+        symmetric: bool = False,
+        zero_diagonal: bool = True,
+        scale: float | nn.Parameter = 0.0225,
+        exactly_one_active_feature: bool = False,
+    ):
         super().__init__(n_features, p, device=device, seed=seed, exactly_one_active_feature=exactly_one_active_feature)
-        self.M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
-        self.M = self.M * scale
+        self.M = self._generate_M(rank=rank, symmetric=symmetric, zero_diagonal=zero_diagonal)
+        self.scale = torch.tensor(scale, device=self.device) if isinstance(scale, float) else scale
+
+    def _generate_M(
+        self,
+        rank: int | None = None,
+        symmetric: bool = False,
+        zero_diagonal: bool = True,
+    ) -> Float[Tensor, "n_features n_features"]:
+        if rank is None:
+            M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
+        else:
+            U = torch.randn(self.n_features, rank, device=self.device, generator=self.generator)
+            V = torch.randn(self.n_features, rank, device=self.device, generator=self.generator)
+            M = U @ V.T
         if zero_diagonal:
-            self.M.fill_diagonal_(0)
+            M.fill_diagonal_(0)
         if symmetric:
-            self.M = torch.triu(self.M) + torch.triu(self.M, diagonal=1).T
+            M = torch.triu(M) + torch.triu(M, diagonal=1).T
+        return M
 
     def _generate_labels(self, inputs: Float[Tensor, "batch n_features"]) -> Float[Tensor, "batch n_features"]:
-        return self.relu(inputs) + einops.einsum(self.M, inputs, "n_out n_in, batch n_in -> batch n_out")
+        return self.relu(inputs) + torch.abs(self.scale) * einops.einsum(self.M, inputs, "n_out n_in, batch n_in -> batch n_out")
 
 
 def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int = 10_000) -> list[float]:
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-2)
+    parameters = list(model.parameters())
+    if isinstance(dataset, NoisyDataset) and isinstance(dataset.scale, nn.Parameter):
+        parameters.append(dataset.scale)
+    optimizer = torch.optim.AdamW(parameters, lr=1e-3, weight_decay=1e-2)
     losses = []
     pbar = tqdm(range(steps), desc="Training")
     for step in pbar:
