@@ -35,4 +35,4 @@ plot_loss_of_input_sparsity(
 )
 ax.legend().remove()
 ax.legend(loc="upper left", ncols=1, title="Dataset")
-fig.savefig("nb2_noise_equivalence.png")
+fig.savefig("plots/nb2_noise_equivalence.png")

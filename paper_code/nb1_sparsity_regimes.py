@@ -31,7 +31,7 @@ for str_p in str_train_ps:
 
 train_ps = [float(p) for p in str_train_ps]
 fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps)
-fig.savefig("nb1_sparsity_regimes.png")
+fig.savefig("plots/nb1_sparsity_regimes.png")
 
 # Plot the input-output behaviour of one sparse and dense model, for illustration
 fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5), sharey=True)
@@ -46,7 +46,7 @@ sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
 fig.colorbar(sm, ax=ax2, fraction=0.046, pad=0.04, label="Feature index")
 models[-1].plot_input_output_behaviour(ax2)
 ax2.set_title("p=" + str_train_ps[-1])
-fig.savefig("nb1a_input_output_behaviour.png")
+fig.savefig("plots/nb1a_input_output_behaviour.png")
 plt.show()
 
 
@@ -89,5 +89,5 @@ for model, ax, p in zip([models[0], models[-1]], [ax1, ax2], [str_train_ps[0], s
     plot_weight_bars(W, ax=ax, cmap=ax is ax2)
     ax.set_xlabel("Feature Index")
     ax.set_ylabel("Weight Value")
-fig.savefig("nb1b_weight_bars.png")
+fig.savefig("plots/nb1b_weight_bars.png")
 plt.show()

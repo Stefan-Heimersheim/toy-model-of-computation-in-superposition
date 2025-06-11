@@ -47,7 +47,7 @@ ax.legend()
 ax.set_xlabel("Bias strength")
 ax.set_ylabel("Adjusted loss L / p")
 ax.set_xscale("log")
-fig.savefig("nb4appendix_bias_strength.png")
+fig.savefig("plots/nb4appendix_bias_strength.png")
 plt.show()
 
 
@@ -91,4 +91,4 @@ ax = fig.axes[0]
 ax.legend().remove()
 ax.legend(loc="upper left", ncols=2, title="Feature probability")
 fig.suptitle("Trained vs handcoded models on the clean dataset")
-fig.savefig("nb4_bias_strength.png")
+fig.savefig("plots/nb4_bias_strength.png")
