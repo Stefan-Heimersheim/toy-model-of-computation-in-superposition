@@ -11,13 +11,12 @@ d_mlp = 50
 n_steps = 10_000
 batch_size_train = 1024
 d_embed = 1000
-
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 relu_dataset = ResidTransposeDataset(n_features=n_features, d_embed=d_embed, p=p)
-# Note: The optimal factor to minimize the SVD loss is 0.5, and the factor
-# only influences the eigen *values*, not the eigen *vectors*, so it doesn't
-# influence the SVD direction plot further down.
-MplusID = relu_dataset.M + 0.5 * torch.eye(n_features, device=device)
+# Note: The optimal factor to minimize the SVD loss seems to be 0.5, but using
+# a factor of 1 seems to give nicer SVD directions to visualize.
+MplusID = relu_dataset.Mscaled + 0.5 * torch.eye(n_features, device=device)
 U, S, V = torch.linalg.svd(MplusID)
 
 half_identity_model = get_half_identity_model(n_features, d_mlp)
@@ -37,6 +36,8 @@ training_losses = train(trained_model, relu_dataset, batch_size=batch_size_train
 trained_final_loss = evaluate(trained_model, relu_dataset)
 print(f"ReLU: trained: {trained_final_loss / p:.3f}")
 
+MplusID = relu_dataset.Mscaled.detach() + 1 * torch.eye(n_features, device=relu_dataset.device)
+U, _, _ = torch.linalg.svd(MplusID)
 
 svd_model_cosine_sims = [get_cosine_sim_for_direction(svd_model, U[:, i]) for i in range(n_features)]
 nmf_model_cosine_sims = [get_cosine_sim_for_direction(nmf_model, U[:, i]) for i in range(n_features)]

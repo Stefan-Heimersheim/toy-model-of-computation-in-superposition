@@ -138,18 +138,23 @@ class CleanDataset(SparseDataset):
 class ResidTransposeDataset(SparseDataset):
     """Dataset that generates inputs and labels = ReLU(inputs) + (W_E.T W_E) @ inputs."""
 
-    def __init__(self, n_features: int, d_embed: int, p: float, device: str = None, seed: int | None = None, exactly_one_active_feature: bool = False):
+    def __init__(self, n_features: int, d_embed: int, p: float, device: str = None, seed: int | None = None, exactly_one_active_feature: bool = False, scale: float | nn.Parameter = 1.0):
         super().__init__(n_features, p, device=device, seed=seed, exactly_one_active_feature=exactly_one_active_feature)
         self.d_embed = d_embed
         self.W_E: Float[Tensor, "n_features d_embed"] = torch.randn(self.n_features, d_embed, device=self.device, generator=self.generator)
         self.W_E = F.normalize(self.W_E, dim=1)
+        self.scale = scale if isinstance(scale, nn.Parameter) else nn.Parameter(torch.tensor(scale, device=self.device, dtype=torch.float32))
 
     @property
     def M(self) -> Float[Tensor, "n_features n_features"]:
-        return einops.einsum(self.W_E, self.W_E.T, "n_in d_embed, d_embed n_out -> n_in n_out") - torch.eye(self.n_features, self.n_features, device=self.device)
+        return einops.einsum(self.W_E, self.W_E.T, "n_in d_embed, d_embed n_out -> n_out n_in") - torch.eye(self.n_features, self.n_features, device=self.device)
+
+    @property
+    def Mscaled(self) -> Float[Tensor, "n_features n_features"]:
+        return self.M * torch.abs(self.scale)
 
     def _generate_labels(self, inputs: Float[Tensor, "batch n_features"]) -> Float[Tensor, "batch n_features"]:
-        return self.relu(inputs) + einops.einsum(self.M, inputs, "n_in n_out, batch n_in -> batch n_out")
+        return self.relu(inputs) + einops.einsum(self.Mscaled, inputs, "n_out n_in, batch n_in -> batch n_out")
 
 
 class NoisyDataset(SparseDataset):
@@ -163,25 +168,36 @@ class NoisyDataset(SparseDataset):
         seed: int | None = None,
         rank: int | None = None,
         symmetric: bool = False,
+        U_equals_V: bool = False,  # only used if rank is not None
+        normalize_rows: bool = False,  # only used if rank is not None
         zero_diagonal: bool = True,
         scale: float | nn.Parameter = 0.0225,
         exactly_one_active_feature: bool = False,
     ):
         super().__init__(n_features, p, device=device, seed=seed, exactly_one_active_feature=exactly_one_active_feature)
-        self.M = self._generate_M(rank=rank, symmetric=symmetric, zero_diagonal=zero_diagonal)
+        self.M = self._generate_M(rank=rank, symmetric=symmetric, zero_diagonal=zero_diagonal, U_equals_V=U_equals_V, normalize_rows=normalize_rows)
         self.scale = torch.tensor(scale, device=self.device) if isinstance(scale, float) else scale
+
+    @property
+    def Mscaled(self) -> Float[Tensor, "n_features n_features"]:
+        return self.M * torch.abs(self.scale)
 
     def _generate_M(
         self,
         rank: int | None = None,
         symmetric: bool = False,
         zero_diagonal: bool = True,
+        U_equals_V: bool = False,  # only used if rank is not None
+        normalize_rows: bool = False,  # only used if rank is not None
     ) -> Float[Tensor, "n_features n_features"]:
         if rank is None:
             M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
         else:
             U = torch.randn(self.n_features, rank, device=self.device, generator=self.generator)
-            V = torch.randn(self.n_features, rank, device=self.device, generator=self.generator)
+            V = torch.randn(self.n_features, rank, device=self.device, generator=self.generator) if not U_equals_V else U
+            if normalize_rows:
+                U = F.normalize(U, dim=1)
+                V = F.normalize(V, dim=1)
             M = U @ V.T
         if zero_diagonal:
             M.fill_diagonal_(0)
@@ -190,7 +206,7 @@ class NoisyDataset(SparseDataset):
         return M
 
     def _generate_labels(self, inputs: Float[Tensor, "batch n_features"]) -> Float[Tensor, "batch n_features"]:
-        return self.relu(inputs) + torch.abs(self.scale) * einops.einsum(self.M, inputs, "n_out n_in, batch n_in -> batch n_out")
+        return self.relu(inputs) + einops.einsum(self.Mscaled, inputs, "n_out n_in, batch n_in -> batch n_out")
 
 
 def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int = 10_000) -> list[float]:
