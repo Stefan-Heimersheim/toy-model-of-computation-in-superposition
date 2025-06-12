@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from mlpinsoup import MLP, CleanDataset, NoisyDataset, evaluate
