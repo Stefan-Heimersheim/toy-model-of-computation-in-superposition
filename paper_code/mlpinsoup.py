@@ -282,3 +282,11 @@ def plot_loss_of_input_sparsity(
     ax.set_ylabel("Adjusted loss L / p")
     ax.legend(ncols=3, loc="upper left")
     return fig
+
+
+def get_cosine_sim_for_direction(model: MLP, d: Float[Tensor, "d_in"]) -> float:
+    """Get cosine similarity between direction d and W_out @ W_in @ d"""
+    model_transformation = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_in d_out")
+    projected_sv = einops.einsum(d, model_transformation, "d_in, d_in d_out -> d_out")
+    cosine_sim = F.cosine_similarity(d, projected_sv, dim=0)
+    return cosine_sim.item()
