@@ -1,6 +1,7 @@
 import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import seaborn as sns
 import torch
@@ -30,14 +31,27 @@ for str_p in str_train_ps:
     labels.append("p=" + str_p)
 
 train_ps = [float(p) for p in str_train_ps]
-fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps)
-fig.savefig("plots/nb1_sparsity_regimes.png")
+
+# Generate colours
+def get_gradient_colors(start_hex, end_hex, n_lines):
+    # Convert hex to RGB (0-1 range)
+    start_rgb = np.array(mcolors.to_rgb(start_hex))
+    end_rgb = np.array(mcolors.to_rgb(end_hex))
+    
+    # Create linear gradient between start and end
+    return [mcolors.to_hex(start_rgb + (end_rgb - start_rgb) * i / (n_lines - 1)) for i in range(n_lines)]
+
+colors = get_gradient_colors("#1abc9c", "#9b59b6", len(str_train_ps)) # purple to teal gradient
+
+fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps, colors = colors)
+fig.savefig("./plots/nb1_sparsity_regimes.png")
 
 # Plot the input-output behaviour of one sparse and dense model, for illustration
 fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5), sharey=True)
 fig.suptitle("Input-output behaviour for individual features")
 models[0].plot_input_output_behaviour(ax1)
 ax1.set_title("p=" + str_train_ps[0])
+ax1.grid(True, alpha = 0.3)
 x = torch.linspace(-1, 1, 100)
 ax1.plot(x, F.relu(x), color="tab:red", ls="--")
 ax2.plot(x, F.relu(x), color="tab:red", ls="--")
@@ -46,6 +60,7 @@ sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
 fig.colorbar(sm, ax=ax2, fraction=0.046, pad=0.04, label="Feature index")
 models[-1].plot_input_output_behaviour(ax2)
 ax2.set_title("p=" + str_train_ps[-1])
+ax2.grid(True, alpha = 0.3)
 fig.savefig("plots/nb1a_input_output_behaviour.png")
 plt.show()
 
@@ -89,5 +104,6 @@ for model, ax, p in zip([models[0], models[-1]], [ax1, ax2], [str_train_ps[0], s
     plot_weight_bars(W, ax=ax, cmap=ax is ax2)
     ax.set_xlabel("Feature Index")
     ax.set_ylabel("Weight Value")
+    ax.grid(True, alpha=0.3)
 fig.savefig("plots/nb1b_weight_bars.png")
 plt.show()

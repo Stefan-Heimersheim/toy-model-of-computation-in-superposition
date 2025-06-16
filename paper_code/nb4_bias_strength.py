@@ -47,6 +47,7 @@ ax.legend()
 ax.set_xlabel("Bias strength")
 ax.set_ylabel("Adjusted loss L / p")
 ax.set_xscale("log")
+ax.grid(True, alpha=0.3)
 fig.savefig("plots/nb4appendix_bias_strength.png")
 plt.show()
 
@@ -90,5 +91,6 @@ fig = plot_loss_of_input_sparsity(
 ax = fig.axes[0]
 ax.legend().remove()
 ax.legend(loc="upper left", ncols=2, title="Feature probability")
+ax.grid(True, alpha=0.3)
 fig.suptitle("Trained vs handcoded models on the clean dataset")
 fig.savefig("plots/nb4_bias_strength.png")

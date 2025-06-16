@@ -53,5 +53,6 @@ ax.set_title("Testing how well SVD directions are captured by $W_{\\rm out} W_{\
 ax.set_xlabel("Singular vector index $i$")
 ax.set_ylabel("Cosine similarity of $v_i$ with $W_{\\rm out} W_{\\rm in} v_i$")
 ax.legend(loc="lower left")
+ax.grid(True, alpha=0.3)
 fig.savefig("plots/nb5_svd_comparison.png")
 plt.show()

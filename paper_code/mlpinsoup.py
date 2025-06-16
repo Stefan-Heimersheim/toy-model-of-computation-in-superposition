@@ -83,6 +83,7 @@ class MLP(nn.Module):
             ax.plot(test_input[:, i].cpu(), test_output[:, i].cpu(), color=c)
         ax.set_xlabel("Input")
         ax.set_ylabel("Output")
+        ax.grid(True, alpha=0.3)
         fig.suptitle("Input-output behaviour for individual features")
         return fig
 
@@ -297,6 +298,7 @@ def plot_loss_of_input_sparsity(
     ax.set_xlabel("Feature probability p")
     ax.set_ylabel("Adjusted loss L / p")
     ax.legend(ncols=3, loc="upper left")
+    ax.grid(True, alpha=0.3)
     return fig
 
 
