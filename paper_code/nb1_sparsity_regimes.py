@@ -15,7 +15,7 @@ sns.set_style("whitegrid")
 # Input feature probabilities to test
 plot_ps = np.geomspace(0.001, 1, 100)
 # Train feature probabilities
-str_train_ps = ["0.001", "0.002", "0.005", "0.01", "0.02", "0.05", "0.1", "0.2", "0.5", "1"]
+str_train_ps = ["0.001", "0.01", "0.05", "0.1", "0.5", "1"]
 # Dataset following Braun et al. 2025
 apd_dataset = ResidTransposeDataset(n_features=100, d_embed=1000, p=0)
 

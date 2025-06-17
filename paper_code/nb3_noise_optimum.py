@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 from mlpinsoup import MLP, NoisyDataset, evaluate, train
 from tqdm import tqdm
@@ -32,9 +33,10 @@ fig, ax = plt.subplots(constrained_layout=True)
 ax.plot(noise_levels, np.array(sym_losses) / 0.01, marker="o", label="Symmetric noise", color="C2")
 ax.plot(noise_levels, np.array(asym_losses) / 0.01, marker="o", label="Asymmetric noise", color="C3")
 ax.axhline(0.083, color="k", ls="--")
-ax.set_xlabel("Dataset noise scale")
+ax.set_xlabel("Label noise scale")
 ax.set_ylabel("Loss per feature L / p")
 ax.legend()
+ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
 ax.grid(True, alpha=0.3)
 fig.savefig("./plots/nb3_noise_optimum.png")
 plt.show()

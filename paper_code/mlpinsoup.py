@@ -6,6 +6,7 @@ from typing import Callable
 
 import einops
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -290,13 +291,14 @@ def plot_loss_of_input_sparsity(
                 loss_at_p = evaluate(model, dataset)
                 highlight_adj_losses.append(loss_at_p / p)
     if show_naive:
-        ax.plot(ps, naive_adj_losses, color="k", ls="--")
+        ax.plot(ps, naive_adj_losses, color="k", ls="--", label="Naive solution")
     if highlight_ps is not None:
         ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Feature probability p")
     ax.set_ylabel("Adjusted loss L / p")
+    ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
     ax.legend(ncols=3, loc="upper left")
     ax.grid(True, alpha=0.3)
     return fig
