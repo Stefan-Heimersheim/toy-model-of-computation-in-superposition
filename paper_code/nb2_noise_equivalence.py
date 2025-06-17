@@ -30,7 +30,7 @@ plot_loss_of_input_sparsity(
     ps=np.geomspace(0.001, 1, 100),
     ax=ax,
     labels=["Clean", "Noisy-embeding", "Symmetric noisy-mixing", "Asymmetric noisy-mixing"],
-    colors=["C0", "C1", "C2", "C3"],
+    colors=["#ff7f0e", "#2ca02c", "#1f77b4", "#4e91c2"],
     datasets=[clean_dataset, resid_transpose_dataset, symmetric_noise_dataset, noise_dataset],
 )
 ax.legend().remove()
