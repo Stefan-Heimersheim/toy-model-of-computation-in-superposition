@@ -43,7 +43,8 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
             va="top",
         )
     optimal_bias_strengths[bias_p] = bias_strengths[opt_idx]
-
+    
+ax.axhline(0.083, color="k", ls="--", label="Naive solution")
 ax.legend()
 ax.set_xlabel("Offset strength")
 ax.set_ylabel("$L / p$")
@@ -88,7 +89,7 @@ fig = plot_loss_of_input_sparsity(
     labels=trained_labels + handcoded_labels,
     colors=colors + handcoded_colors,
     linestyles=linestyles + handcoded_linestyles,
-    show_naive=False,
+    show_naive=True,
 )
 ax = fig.axes[0]
 ax.legend().remove()
