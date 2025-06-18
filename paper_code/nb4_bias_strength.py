@@ -2,6 +2,7 @@ import colorsys
 
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 from mlpinsoup import MLP, CleanDataset, evaluate, plot_loss_of_input_sparsity, train
 
@@ -44,10 +45,11 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
     optimal_bias_strengths[bias_p] = bias_strengths[opt_idx]
 
 ax.legend()
-ax.set_xlabel("Bias strength")
+ax.set_xlabel("Offset strength")
 ax.set_ylabel("Adjusted loss L / p")
 ax.set_xscale("log")
-fig.savefig("plots/nb4appendix_bias_strength.png")
+ax.grid(True, alpha=0.3)
+fig.savefig("plots/nb4appendix_offset_strength.png")
 plt.show()
 
 
@@ -90,5 +92,7 @@ fig = plot_loss_of_input_sparsity(
 ax = fig.axes[0]
 ax.legend().remove()
 ax.legend(loc="upper left", ncols=2, title="Feature probability")
-fig.suptitle("Trained vs handcoded models on the clean dataset")
-fig.savefig("plots/nb4_bias_strength.png")
+ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
+ax.grid(True, alpha=0.3)
+fig.suptitle("Trained vs handcoded models on the clean label")
+fig.savefig("plots/nb4_offset_strength.png")

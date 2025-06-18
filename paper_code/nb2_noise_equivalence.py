@@ -29,10 +29,11 @@ plot_loss_of_input_sparsity(
     models=[clean_model, resid_transpose_model, symmetric_noise_model, noisy_model],
     ps=np.geomspace(0.001, 1, 100),
     ax=ax,
-    labels=["Clean", "Residual", "Symmetric mixing", "Asymmetric mixing"],
-    colors=["C0", "C1", "C2", "C3"],
+    labels=["Clean", "Noisy-embeding", "Symmetric noisy-mixing", "Asymmetric noisy-mixing"],
+    colors=["#ff7f0e", "#2ca02c", "#1f77b4", "#4e91c2"],
     datasets=[clean_dataset, resid_transpose_dataset, symmetric_noise_dataset, noise_dataset],
 )
 ax.legend().remove()
-ax.legend(loc="upper left", ncols=1, title="Dataset")
+ax.legend(loc="upper left", ncols=1, title="Labels")
+ax.grid(True, alpha=0.3)
 fig.savefig("plots/nb2_noise_equivalence.png")
