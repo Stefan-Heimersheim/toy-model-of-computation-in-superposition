@@ -30,8 +30,8 @@ for i, (sym_noisy_model, sym_noisy_dataset, asym_noisy_model, asym_noisy_dataset
     asym_losses.append(asym_loss)
 
 fig, ax = plt.subplots(constrained_layout=True)
-ax.plot(noise_levels, np.array(sym_losses) / 0.01, marker="o", label="Symmetric noise", color="#1f77b4")
-ax.plot(noise_levels, np.array(asym_losses) / 0.01, marker="o", label="Asymmetric noise", color="#4e91c2")
+ax.plot(noise_levels, np.array(sym_losses) / 0.01, marker="o", label="Symmetric noise", color="#acd3f5")
+ax.plot(noise_levels, np.array(asym_losses) / 0.01, marker="o", label="Asymmetric noise", color="#15406c")
 ax.axhline(0.083, color="k", ls="--", label="Naive solution")
 ax.set_xlabel("Noise scale")
 ax.set_ylabel("$L / p$")
