@@ -106,4 +106,96 @@ for model, ax, p in zip([models[0], models[-1]], [ax1, ax2], [str_train_ps[0], s
     ax.set_ylabel("Weight Value")
     ax.grid(True, alpha=0.3)
 fig.savefig("plots/nb1b_weight_bars.png")
-plt.show()
+
+
+@torch.no_grad()
+def plot_input_output_heatmap(
+    x: float,
+    model: MLP,
+    ax: plt.Axes | None = None,
+    **kwargs,
+) -> plt.Axes:
+    """Plots heatmap of output response of all features given single-feature input, for all features.
+    
+    Args:
+        x: Value to set for each input feature (e.g., 1 or -1)
+        model: MLP model from mlpinsoup.py
+        ax: Matplotlib axis to plot on
+        **kwargs: Additional arguments for seaborn heatmap
+    """
+    device = model.device
+    n_features = model.n_features
+    title = f"Input-output heatmap (x={x})"
+
+    # Generate one-hot input: each row has exactly one feature set to x
+    # Shape: [n_features, n_features] where row i has feature i set to x
+    inputs = torch.eye(n_features, device=device, dtype=torch.float32) * x
+    
+    # Generate output response matrix
+    outputs = model.forward(inputs)  # Shape: [n_features, n_features]
+    outputs_np = outputs.cpu().numpy()
+    
+    # Plot it
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Set default parameters
+    heatmap_kwargs = {
+        "cmap": "viridis",
+        "annot": False,
+        "fmt": ".2f",
+        "vmax": 1,
+        "vmin": 0,
+        "center": 0,
+        "cbar_kws": {"label": "Output value"}
+    }
+    heatmap_kwargs.update(kwargs)
+    
+    ax = sns.heatmap(
+        outputs_np,
+        ax=ax,
+        **heatmap_kwargs
+    )
+    ax.set_title(title)
+    ax.set_xlabel("Input feature")
+    ax.set_ylabel("Output feature")
+    ax.set_xticks(np.arange(0, n_features, step=5))
+    ax.set_yticks(np.arange(0, n_features, step=5))
+    ax.set_xticklabels(np.arange(0, n_features, step=5))
+    ax.set_yticklabels(np.arange(0, n_features, step=5))
+    ax.tick_params(axis='x', rotation=0)
+    ax.tick_params(axis='y', rotation=0)
+
+    return ax
+
+
+# Create 4-panel interference heatmap figure
+
+model_low_p = models[0]    # p=0.001 
+model_high_p = models[-1]  # p=1.0
+p_low = str_train_ps[0]
+p_high = str_train_ps[-1]
+
+# Create 2x2 subplot
+fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+fig.suptitle("Input-Output Heatmap Response for all features given a particular input value")
+
+# Top row: x = 1
+plot_input_output_heatmap(1.0, model_low_p, ax=axes[0, 0], 
+                         annot=False, fmt=".1f", cbar=False)
+axes[0, 0].set_title(f"x=+1, p={p_low}")
+
+plot_input_output_heatmap(1.0, model_high_p, ax=axes[0, 1],
+                         annot=False, fmt=".1f", cbar=True)
+axes[0, 1].set_title(f"x=+1, p={p_high}")
+
+# Bottom row: x = -1  
+plot_input_output_heatmap(-1.0, model_low_p, ax=axes[1, 0],
+                         annot=False, fmt=".1f", cbar=False)
+axes[1, 0].set_title(f"x=-1, p={p_low}")
+
+plot_input_output_heatmap(-1.0, model_high_p, ax=axes[1, 1],
+                         annot=False, fmt=".1f", cbar=True)
+axes[1, 1].set_title(f"x=-1, p={p_high}")
+
+fig.savefig("plots/nb1c_interference_heatmaps.png")
