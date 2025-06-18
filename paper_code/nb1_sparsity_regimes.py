@@ -44,6 +44,7 @@ def get_gradient_colors(start_hex, end_hex, n_lines):
 colors = get_gradient_colors("#1abc9c", "#9b59b6", len(str_train_ps)) # purple to teal gradient
 
 fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps, colors = colors)
+fig.suptitle("Loss over a set of evaluation feature probabilities across a range of training feature probabilities")
 fig.savefig("./plots/nb1_sparsity_regimes.png")
 
 # Plot the input-output behaviour of one sparse and dense model, for illustration

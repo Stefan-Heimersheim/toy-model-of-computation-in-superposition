@@ -46,9 +46,10 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
 
 ax.legend()
 ax.set_xlabel("Offset strength")
-ax.set_ylabel("Adjusted loss L / p")
+ax.set_ylabel("$L / p$")
 ax.set_xscale("log")
 ax.grid(True, alpha=0.3)
+fig.suptitle("Loss across offset strengths for different training feature probabilities")
 fig.savefig("plots/nb4appendix_offset_strength.png")
 plt.show()
 

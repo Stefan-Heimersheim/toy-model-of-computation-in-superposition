@@ -36,4 +36,5 @@ plot_loss_of_input_sparsity(
 ax.legend().remove()
 ax.legend(loc="upper left", ncols=1, title="Labels")
 ax.grid(True, alpha=0.3)
+fig.suptitle("Loss over a set of evaluation feature probabilities across different label settings")
 fig.savefig("plots/nb2_noise_equivalence.png")
