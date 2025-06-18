@@ -298,6 +298,7 @@ def plot_loss_of_input_sparsity(
     ax.set_yscale("log")
     ax.set_xlabel("$p$")
     ax.set_ylabel("$L / p$")
+    ax.set_yticks([0.1, 0.09, 0.08, 0.07, 0.06])
     ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
     ax.legend(ncols=3, loc="upper left")
     ax.grid(True, alpha=0.3)
