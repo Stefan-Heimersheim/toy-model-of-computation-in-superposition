@@ -60,13 +60,13 @@ class Cis(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.device = device
-        self.dtype = cfg.dtype
+        dtype = self.dtype = cfg.dtype
         n_feat = cfg.n_feat
 
         # Embed and Unembed Matrices
         if cfg.We_and_Wu:
             rand_unit_mats = [
-                F.normalize(t.randn(cfg.We_dim, cfg.n_feat, dtype=self.dtype), dim=0, p=2)
+                F.normalize(t.randn(cfg.We_dim, cfg.n_feat, dtype=dtype), dim=0, p=2)
                 for _ in range(cfg.n_instances)
             ]
             self.We = t.stack(rand_unit_mats).to(device)
@@ -75,15 +75,20 @@ class Cis(nn.Module):
         
         # Noise matrix
         if cfg.noise_params is not None:
-            self.noise_coeff = cfg.noise_params["noise_coeff"]
+            
+            noise_coeff_value = cfg.noise_params["noise_coeff"]
             if cfg.noise_params.get("learned", False):
                 self.noise_coeff = nn.Parameter(
-                    t.tensor(self.noise_coeff, dtype=self.dtype, device=device)
+                    t.full((cfg.n_instances,), noise_coeff_value, dtype=dtype, device=device)
                 )
-            
+            else:
+                self.noise_coeff = t.full(
+                    (cfg.n_instances,), noise_coeff_value, dtype=dtype, device=device
+                )
+
             matrix_type = cfg.noise_params["matrix_type"]
             self.noise_base = t.zeros(
-                cfg.n_instances, cfg.n_feat, cfg.n_feat, dtype=self.dtype, device=device
+                cfg.n_instances, cfg.n_feat, cfg.n_feat, dtype=dtype, device=device
             )
             
             if matrix_type == "asymmetric":
@@ -102,38 +107,57 @@ class Cis(nn.Module):
             elif matrix_type == "rank-r":
                 # Precompute rank-r base with zeros on diagonal
                 r = cfg.noise_params["r"]
-                Q, _ = t.linalg.qr(t.randn(cfg.n_instances, cfg.n_feat, r, device=device), mode="reduced")
+                Q, _ = t.linalg.qr(
+                    t.randn(cfg.n_instances, cfg.n_feat, r, device=device), mode="reduced"
+                )
                 self.noise_base = einsum(Q, Q, "inst feat r, inst feat2 r -> inst feat feat2")
                 idx = t.arange(cfg.n_feat, device=device)
                 self.noise_base[:, idx, idx] = 0.0
             
+            elif matrix_type == "enforced_sv":
+                r = cfg.noise_params["r"]
+                # Create matrices where singular vectors lie in subspace of first r features
+                for i in range(cfg.n_instances):
+                    A_block = t.randn(r, r, device=device, dtype=dtype)
+                    
+                    # Perform SVD to get controlled singular vectors
+                    U, S, Vh = t.linalg.svd(A_block)
+                    
+                    # Reconstruct with desired properties - all singular vectors in first r dims
+                    reconstructed = U @ t.diag(S) @ Vh
+                    self.noise_base[i, :r, :r] = reconstructed
+                    
+                    # Ensure diagonal is zero
+                    idx = t.arange(min(r, cfg.n_feat), device=device)
+                    self.noise_base[i, idx, idx] = 0.0
+                
             elif matrix_type != "identity":
                 raise ValueError(f"Unknown noise matrix type: {matrix_type}")
 
         # Model Weights
-        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat, dtype=self.dtype, device=device)
-        self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1)).type(self.dtype)
+        self.W1 = t.empty(cfg.n_instances, cfg.n_hidden, n_feat, dtype=dtype, device=device)
+        self.W1 = nn.Parameter(nn.init.xavier_normal_(self.W1)).type(dtype)
         if cfg.W1_as_W2T:
             self.W2 = self.W1.transpose(-1, -2)
         else:
-            self.W2 = t.empty(cfg.n_instances, n_feat, cfg.n_hidden, dtype=self.dtype, device=device)
-            self.W2 = nn.Parameter(nn.init.xavier_normal_(self.W2)).type(self.dtype)
+            self.W2 = t.empty(cfg.n_instances, n_feat, cfg.n_hidden, dtype=dtype, device=device)
+            self.W2 = nn.Parameter(nn.init.xavier_normal_(self.W2)).type(dtype)
 
         # Model Biases
         if cfg.b1 is None:
-            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden, dtype=self.dtype, device=device)
+            self.b1 = t.zeros(cfg.n_instances, cfg.n_hidden, dtype=dtype, device=device)
         elif np.isscalar(cfg.b1):
-            self.b1 = nn.Parameter(t.full((cfg.n_instances, cfg.n_hidden), cfg.b1, dtype=self.dtype))
+            self.b1 = nn.Parameter(t.full((cfg.n_instances, cfg.n_hidden), cfg.b1, dtype=dtype))
         else:
-            self.b1 = nn.Parameter(cfg.b1.to(dtype=self.dtype, device=device))
+            self.b1 = nn.Parameter(cfg.b1.to(dtype=dtype, device=device))
 
         if cfg.b2 is None:
-            self.b2 = t.zeros(cfg.n_instances, n_feat, dtype=self.dtype, device=device)
+            self.b2 = t.zeros(cfg.n_instances, n_feat, dtype=dtype, device=device)
         elif np.isscalar(cfg.b2):
-            self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2, dtype=self.dtype))
+            self.b2 = nn.Parameter(t.full((cfg.n_instances, n_feat), cfg.b2, dtype=dtype))
         else:
-            self.b2 = nn.Parameter(cfg.b2.to(dtype=self.dtype, device=device))
-        
+            self.b2 = nn.Parameter(cfg.b2.to(dtype=dtype, device=device))
+
         self.to(device)
 
     def forward(
@@ -168,11 +192,12 @@ class Cis(nn.Module):
             Wn = t.eye(self.cfg.n_feat, dtype=self.dtype, device=self.device).expand(
                 self.cfg.n_instances, -1, -1
             )
-            Wn = Wn + self.noise_coeff * self.noise_base
+            noise_coeffs = self.noise_coeff.view(self.cfg.n_instances, 1, 1)
+            Wn = Wn + noise_coeffs * self.noise_base
                 
             y += einsum(
                 x * res_factor,
-                Wn, 
+                Wn,
                 "batch inst feat, inst feat feat_out -> batch inst feat_out"
             )
 
