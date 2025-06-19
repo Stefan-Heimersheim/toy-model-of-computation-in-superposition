@@ -1,7 +1,8 @@
+import einops
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from mlpinsoup import MLP, CleanDataset, NoisyDataset, evaluate
+from mlpinsoup import MLP, CleanDataset, NoisyDataset, compare_WoutWin_Mscaled, evaluate
 from sklearn.decomposition import NMF
 
 # Parameters
@@ -18,11 +19,11 @@ print(f"Naive on clean: {naive_clean_loss:.4f}")
 # Semi-NMF Solution on noisy dataset
 scales = []
 losses = []
+models = []
 for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05]:
     noisy_dataset = NoisyDataset(n_features, p, device=device, exactly_one_active_feature=True, scale=scale)
-    M = noisy_dataset.M.cpu().detach().numpy()
-    scale = noisy_dataset.scale.item()
-    target_matrix = np.eye(n_features) + scale * M
+    Mscaled = noisy_dataset.Mscaled.cpu().detach().numpy()
+    target_matrix = np.eye(n_features) + Mscaled
     ## NMF
     nmf = NMF(n_components=d_mlp, init="random", random_state=42, max_iter=5000)
     U_init = nmf.fit_transform(np.abs(target_matrix))
@@ -56,6 +57,7 @@ for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05]:
     print(f"Semi-NMF on noisy scale {scale:.3f}: {semi_nmf_noisy_loss:.4f}")
     scales.append(scale)
     losses.append(semi_nmf_noisy_loss)
+    models.append(semi_nmf_model)
 
 # Plot
 plt.axhline(y=naive_clean_loss, color="red", linestyle="--", label="Naive on clean")
@@ -64,3 +66,6 @@ plt.xlabel("Scale")
 plt.ylabel("Loss")
 plt.legend()
 plt.show()
+
+for model in models:
+    compare_WoutWin_Mscaled(model, noisy_dataset)

@@ -1,12 +1,18 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
-from mlpinsoup import MLP, CleanDataset, NoisyDataset, ResidTransposeDataset, plot_loss_of_input_sparsity, train
+import torch
+from mlpinsoup import MLP, CleanDataset, NoisyDataset, ResidTransposeDataset, evaluate, plot_loss_of_input_sparsity, sns_colorblind, train
+from torch import nn
+from tqdm import tqdm
 
 p = 0.01
 n_features = 100
 d_mlp = 50
 n_steps = 10_000
-batch_size_train = 1024
+batch_size_train = 2048
+
+# %% Compare clean, embed, asymmetric and symmetric noise
 
 clean_dataset = CleanDataset(n_features=n_features, p=p)
 clean_model = MLP(n_features=n_features, d_mlp=d_mlp)
@@ -14,26 +20,70 @@ train(clean_model, clean_dataset, batch_size=batch_size_train, steps=n_steps)
 resid_transpose_dataset = ResidTransposeDataset(n_features=n_features, d_embed=1000, p=p)
 resid_transpose_model = MLP(n_features=n_features, d_mlp=d_mlp)
 train(resid_transpose_model, resid_transpose_dataset, batch_size=batch_size_train, steps=n_steps)
+sigma_embed = resid_transpose_dataset.Mscaled.std().item()
 
-noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=0.03, symmetric=False)
+scale_asym = nn.Parameter(torch.tensor(0.01))
+noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_asym, symmetric=False, zero_diagonal=False)
 noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
 train(noisy_model, noise_dataset, batch_size=batch_size_train, steps=n_steps)
 
-symmetric_noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=0.04, symmetric=True)
+scale_sym = nn.Parameter(torch.tensor(0.01))
+symmetric_noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_sym, symmetric=True, zero_diagonal=False)
 symmetric_noise_model = MLP(n_features=n_features, d_mlp=d_mlp)
 train(symmetric_noise_model, symmetric_noise_dataset, batch_size=batch_size_train, steps=n_steps)
 
 
-fig, ax = plt.subplots(constrained_layout=True)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
 plot_loss_of_input_sparsity(
-    models=[clean_model, resid_transpose_model, symmetric_noise_model, noisy_model],
+    models=[resid_transpose_model, clean_model, noisy_model, symmetric_noise_model],
     ps=np.geomspace(0.001, 1, 100),
-    ax=ax,
-    labels=["Clean", "Noisy-embeding", "Symmetric noisy-mixing", "Asymmetric noisy-mixing"],
-    colors=["#ff7f0e", "#2ca02c", "#1f77b4", "#4e91c2"],
-    datasets=[clean_dataset, resid_transpose_dataset, symmetric_noise_dataset, noise_dataset],
+    ax=ax1,
+    labels=[f"Embedding-like $M = 1 - W_E W_E^T$ ($\\mathrm{{std}}(M) = {sigma_embed:.3f}$)", "No mixing $M = 0$", f"Asymmetric noisy-mixing $M \\sim \\mathcal{{N}}(0, {scale_asym.abs().item():.3f}^2)$", f"Symmetric noisy-mixing $M \\sim \\mathcal{{N}}(0, {scale_sym.abs().item():.3f}^2)$"],
+    colors=sns_colorblind[:4],
+    datasets=[resid_transpose_dataset, clean_dataset, noise_dataset, symmetric_noise_dataset],
 )
-ax.legend().remove()
-ax.legend(loc="upper left", ncols=1, title="Labels")
-ax.grid(True, alpha=0.3)
-fig.savefig("plots/nb2_noise_equivalence.png")
+ax1.set_title("Loss over input sparsity for different mixing matrices $M$")
+ax1.set_xlabel("Feature probability $p$")
+ax1.set_ylabel("Loss per feature $L / p$")
+ax1.legend().remove()
+ax1.legend(loc="upper left", ncols=1)
+ax1.grid(True, alpha=0.3)
+fig.savefig("plots/nb2a_noise_equivalence.png")
+
+
+# %% Plot loss vs noise scale for symmetric and asymmetric noise
+
+noise_levels = np.linspace(0.00, 0.08, 41)  # 10 minutes
+sym_models, sym_datasets, sym_losses = [], [], []
+asym_models, asym_datasets, asym_losses = [], [], []
+
+for i, noise_level in enumerate(noise_levels):
+    sym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, exactly_one_active_feature=True, symmetric=True, zero_diagonal=True)
+    asym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, exactly_one_active_feature=True, symmetric=False, zero_diagonal=True)
+    sym_noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
+    asym_noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
+    train(sym_noisy_model, sym_noisy_dataset, batch_size=batch_size_train, steps=n_steps)
+    train(asym_noisy_model, asym_noisy_dataset, batch_size=batch_size_train, steps=n_steps)
+    sym_models.append(sym_noisy_model)
+    asym_models.append(asym_noisy_model)
+    sym_datasets.append(sym_noisy_dataset)
+    asym_datasets.append(asym_noisy_dataset)
+
+sym_losses = []
+asym_losses = []
+for i, (sym_noisy_model, sym_noisy_dataset, asym_noisy_model, asym_noisy_dataset) in tqdm(enumerate(zip(sym_models, sym_datasets, asym_models, asym_datasets, strict=True)), total=len(sym_models), desc="Evaluating"):
+    sym_loss = evaluate(sym_noisy_model, sym_noisy_dataset, n_samples=100_000_000)
+    asym_loss = evaluate(asym_noisy_model, asym_noisy_dataset, n_samples=10_000_000)
+    sym_losses.append(sym_loss)
+    asym_losses.append(asym_loss)
+
+ax2.plot(noise_levels, np.array(sym_losses) / p, marker="o", label="Symmetric noise", color=sns_colorblind[2])
+ax2.plot(noise_levels, np.array(asym_losses) / p, marker="o", label="Asymmetric noise", color=sns_colorblind[3])
+ax2.axhline(0.083, color="k", ls="--", label="Naive solution")
+ax2.set_xlabel("Label noise scale $\\sigma$")
+ax2.set_ylabel("Loss per feature $L / p$")
+ax2.legend()
+ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
+ax2.grid(True, alpha=0.3)
+fig.savefig("plots/nb2_noise_comparison_and_optimum.png")
+plt.show()

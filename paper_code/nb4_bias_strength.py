@@ -20,7 +20,7 @@ bias_strengths = np.geomspace(0.002, 0.05, 100)
 dataset = CleanDataset(n_features=100, p=0)
 optimal_bias_strengths = {}
 
-fig, ax = plt.subplots(constrained_layout=True)
+fig, [ax1, ax2] = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
 
 for bias_p, bias_color in zip(bias_ps, bias_colors):
     losses = []
@@ -31,11 +31,11 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
         naive_model.handcode_naive_mlp(bias_strength=bias_strength)
         loss = evaluate(naive_model, dataset)
         losses.append(loss / float(bias_p))
-    ax.plot(bias_strengths, losses, label=f"p={bias_p}", color=bias_color)
+    ax1.plot(bias_strengths, losses, label=f"p={bias_p}", color=bias_color)
     opt_idx = np.argmin(losses)
-    ax.scatter(bias_strengths[opt_idx], losses[opt_idx], color=bias_color, marker="o")
+    ax1.scatter(bias_strengths[opt_idx], losses[opt_idx], color=bias_color, marker="o")
     if float(bias_p) >= 0.1:
-        ax.text(
+        ax1.text(
             bias_strengths[opt_idx],
             losses[opt_idx],
             f"Optimal bias: {bias_strengths[opt_idx]:.3f}  ",
@@ -44,13 +44,11 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
         )
     optimal_bias_strengths[bias_p] = bias_strengths[opt_idx]
 
-ax.legend()
-ax.set_xlabel("Offset strength")
-ax.set_ylabel("Adjusted loss L / p")
-ax.set_xscale("log")
-ax.grid(True, alpha=0.3)
-fig.savefig("plots/nb4appendix_offset_strength.png")
-plt.show()
+ax1.legend()
+ax1.set_xlabel("Offset strength")
+ax1.set_ylabel("Adjusted loss L / p")
+ax1.set_xscale("log")
+ax1.grid(True, alpha=0.3)
 
 
 plot_ps = np.geomspace(0.001, 1, 100)
@@ -80,7 +78,7 @@ for bias_p in bias_ps:
     handcoded_models.append(naive_model)
     handcoded_labels.append(None)  # f"Handcoded w/ bias={optimal_bias_strengths[bias_p]:.3f}")
 
-fig = plot_loss_of_input_sparsity(
+plot_loss_of_input_sparsity(
     trained_models + handcoded_models,
     clean_dataset,
     ps=plot_ps,
@@ -88,11 +86,11 @@ fig = plot_loss_of_input_sparsity(
     colors=colors + handcoded_colors,
     linestyles=linestyles + handcoded_linestyles,
     show_naive=False,
+    ax=ax2,
 )
-ax = fig.axes[0]
-ax.legend().remove()
-ax.legend(loc="upper left", ncols=2, title="Feature probability")
-ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
-ax.grid(True, alpha=0.3)
+ax2.legend().remove()
+ax2.legend(loc="upper left", ncols=2, title="Feature probability")
+ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
+ax2.grid(True, alpha=0.3)
 fig.suptitle("Trained vs handcoded models on the clean label")
-fig.savefig("plots/nb4_offset_strength.png")
+fig.savefig("plots/nb4_opt_offset_and_comparison.png")
