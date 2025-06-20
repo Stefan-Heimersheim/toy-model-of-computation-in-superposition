@@ -20,6 +20,10 @@ from torch import Tensor, nn
 from tqdm import tqdm
 
 
+def get_sns_colorblind():
+    return ["#0173b2", "#de8f05", "#029e73", "#d55e00", "#cc78bc", "#ca9161", "#fbafe4", "#949494", "#ece133", "#56b4e9"]
+
+
 class MLP(nn.Module):
     """A simple MLP module without biases."""
 
@@ -365,30 +369,29 @@ def plot_loss_of_input_sparsity(
     return fig
 
 
-sns_colorblind = ["#0173b2", "#de8f05", "#029e73", "#d55e00", "#cc78bc", "#ca9161", "#fbafe4", "#949494", "#ece133", "#56b4e9"]
-
-
-def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | None = None):
+def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | None = None) -> plt.Figure:
     WoutWin = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_out d_in").cpu().detach()
     Mscaled = dataset.Mscaled.cpu().detach()
+    sns_colorblind = get_sns_colorblind()
     ax = ax or plt.subplots(constrained_layout=True)[1]
-    ax.set_title("Entries of $M$ and $W_{\\rm out} W_{\\rm in}$")
+    fig = ax.get_figure()
+    ax.set_title("Correlation of entries of $M$ and $W_{\\rm out} W_{\\rm in}$")
     ax.set_ylabel("$(W_{\\rm out} W_{\\rm in})_{i,j}$")
     ax.set_xlabel("$M_{i,j}$")
-    ax.scatter(Mscaled.flatten(), WoutWin.flatten())
+    # ax.scatter(Mscaled.flatten(), WoutWin.flatten())
 
     diagonal_M = torch.diag(Mscaled)
     diagonal_WoutWin = torch.diag(WoutWin)
     offdiag_M = Mscaled - torch.diag(torch.diag(Mscaled))
     offdiag_WoutWin = WoutWin - torch.diag(torch.diag(WoutWin))
-    ax.scatter(offdiag_M.flatten(), offdiag_WoutWin.flatten(), label="Off-diagonal", alpha=0.5)
-    ax.scatter(diagonal_M.flatten(), diagonal_WoutWin.flatten(), label="Diagonal", alpha=0.7)
+    ax.scatter(offdiag_M.flatten(), offdiag_WoutWin.flatten(), label="Off-diagonal", marker=".", color=sns_colorblind[0])
+    ax.scatter(diagonal_M.flatten(), diagonal_WoutWin.flatten(), label="Diagonal", marker=".", color=sns_colorblind[1])
 
     offdiag_x = offdiag_M.flatten().numpy()
     offdiag_y = offdiag_WoutWin.flatten().numpy()
     slope = np.sum(offdiag_x * offdiag_y) / np.sum(offdiag_x**2)
     offdiag_y_pred = slope * offdiag_x
-    ax.plot(offdiag_x, offdiag_y_pred, "r-", label=f"Off-diag fit: y={slope:.3f}x")
+    ax.plot(offdiag_x, offdiag_y_pred, "r-", label=f"Off-diag fit: y={slope:.3f}x", color=sns_colorblind[2])
     diag_x = diagonal_M.flatten().numpy()
     diag_y = diagonal_WoutWin.flatten().numpy()
     diag_x_mean = np.mean(diag_x)
@@ -398,8 +401,9 @@ def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | No
     y_intercept = intercept
     diag_x_range = np.linspace(np.min(diag_x), np.max(diag_x), 100)
     diag_y_pred = slope * diag_x_range + intercept
-    ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}x+{y_intercept:.3f}")
+    ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}x+{y_intercept:.3f}", color=sns_colorblind[3])
     ax.legend()
+    return fig
 
 
 def set_seed(seed: int):

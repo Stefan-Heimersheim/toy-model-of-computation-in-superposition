@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import torch
-from mlpinsoup import MLP, CleanDataset, NoisyDataset, ResidTransposeDataset, evaluate, plot_loss_of_input_sparsity, set_seed, sns_colorblind, train
+from mlpinsoup import MLP, CleanDataset, NoisyDataset, ResidTransposeDataset, evaluate, get_sns_colorblind, plot_loss_of_input_sparsity, set_seed, train
 from torch import nn
 from tqdm import tqdm
 
@@ -13,6 +13,8 @@ n_steps = 10_000
 batch_size_train = 2048
 
 set_seed(42)
+
+sns_colorblind = get_sns_colorblind()
 
 # %% Compare clean, embed, asymmetric and symmetric noise
 

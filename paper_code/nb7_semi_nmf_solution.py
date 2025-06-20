@@ -68,4 +68,5 @@ plt.legend()
 plt.show()
 
 for model in models:
+    model.plot_weights()
     compare_WoutWin_Mscaled(model, noisy_dataset)
