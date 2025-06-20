@@ -65,7 +65,7 @@ for str_p in train_ps:
     model = MLP(n_features=100, d_mlp=50)
     frac_zero_samples = (1 - p) ** model.n_features
     n_steps = int(10_000 / (1 - frac_zero_samples))
-    train(model, clean_dataset, batch_size=1024, steps=n_steps)
+    train(model, clean_dataset, steps=n_steps)
     trained_models.append(model)
     trained_labels.append("p=" + str_p)
 

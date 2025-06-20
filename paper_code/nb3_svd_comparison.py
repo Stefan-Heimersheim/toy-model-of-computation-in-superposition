@@ -13,7 +13,7 @@ p = 0.01
 n_features = 100
 d_mlp = 50
 n_steps = 20_000
-batch_size_train = 1024
+batch_size_train = 2048
 d_embed = 1000
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
