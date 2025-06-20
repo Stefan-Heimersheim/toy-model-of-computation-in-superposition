@@ -117,4 +117,63 @@ plt.show()
 
 fig = compare_WoutWin_Mscaled(trained_model_noisy, noisy_dataset)
 fig.savefig("plots/nb3a_WoutWin_Mscaled_noisy.png")
-# %%
+
+# %% Plot weights
+fig = trained_model_noisy.plot_weights()
+fig.savefig("plots/nb3b_weights_noisy.png")
+plt.show()
+
+# %% Semi-NMF solution
+
+scales = []
+losses = []
+models = []
+for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05]:
+    noisy_dataset_nmf = NoisyDataset(n_features, p, device=device, exactly_one_active_feature=True, scale=scale)
+    target_matrix = np.eye(n_features) + noisy_dataset_nmf.Mscaled.cpu().detach().numpy()
+    # NMF
+    nmf = NMF(n_components=d_mlp, init="random", random_state=42, max_iter=5000)
+    U_init = nmf.fit_transform(np.abs(target_matrix))
+    V_init = nmf.components_
+    # Semi NMF
+    U_pinv = np.linalg.pinv(U_init)
+    V_optimal = U_pinv @ target_matrix
+    U = U_init.copy()
+    V = V_optimal.copy()
+    initial_lr = 0.1
+    final_lr = 0.001
+    max_iterations = 500
+    for iteration in range(max_iterations):
+        progress = iteration / max_iterations
+        step_size = final_lr + 0.5 * (initial_lr - final_lr) * (1 + np.cos(np.pi * progress))
+        if np.linalg.cond(U) < 1e12:
+            U_pinv = np.linalg.pinv(U)
+            V = U_pinv @ target_matrix
+        else:
+            print("U is ill-conditioned, skipping iteration")
+        for _ in range(5):
+            grad_U = (U @ V - target_matrix) @ V.T
+            U = U - step_size * grad_U
+            U = np.maximum(U, 1e-8)
+    semi_nmf_model = MLP(n_features, d_mlp, device)
+    semi_nmf_model.w_in.data = torch.from_numpy(U).float().to(device)
+    semi_nmf_model.w_out.data = torch.from_numpy(V).float().to(device)
+    semi_nmf_noisy_loss = evaluate(semi_nmf_model, noisy_dataset_nmf, n_samples=500_000) / p
+    print(f"Semi-NMF on noisy scale {scale:.3f}: {semi_nmf_noisy_loss:.4f}")
+    scales.append(scale)
+    losses.append(semi_nmf_noisy_loss)
+    models.append(semi_nmf_model)
+
+fig, ax = plt.subplots(constrained_layout=True)
+ax.plot(scales, losses, label="Semi-NMF solution", marker="o")
+ax.axhline(y=0.0833, color="k", ls="--", label="Naive loss")
+ax.set_xlabel("Dataset label noise scale $\\sigma$")
+ax.set_ylabel("Loss per feature $L / p$")
+ax.grid(True, alpha=0.3)
+ax.legend()
+fig.savefig("plots/nb3c_semi_nmf_solution.png")
+plt.show()
+
+for model in models:
+    model.plot_weights()
+    compare_WoutWin_Mscaled(model, noisy_dataset_nmf)

@@ -356,7 +356,7 @@ def plot_loss_of_input_sparsity(
                 loss_at_p = evaluate(model, dataset)
                 highlight_adj_losses.append(loss_at_p / p)
     if show_naive:
-        ax.plot(ps, naive_adj_losses, color="k", ls="--", label="Naive solution")
+        ax.plot(ps, naive_adj_losses, color="k", ls="--", label="Naive loss")
     if highlight_ps is not None:
         ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":", label="p_eval = p_train")
     ax.set_xscale("log")
