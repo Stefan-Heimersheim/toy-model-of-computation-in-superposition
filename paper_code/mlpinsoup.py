@@ -359,30 +359,30 @@ def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | No
     Mscaled = dataset.Mscaled.cpu().detach()
     ax = ax or plt.subplots(constrained_layout=True)[1]
     ax.set_title("Entries of $M$ and $W_{\\rm out} W_{\\rm in}$")
-    ax.set_xlabel("$(W_{\\rm out} W_{\\rm in})_{i,j}$")
-    ax.set_ylabel("$M_{i,j}$")
-    ax.scatter(WoutWin.flatten(), Mscaled.flatten())
+    ax.set_ylabel("$(W_{\\rm out} W_{\\rm in})_{i,j}$")
+    ax.set_xlabel("$M_{i,j}$")
+    ax.scatter(Mscaled.flatten(), WoutWin.flatten())
 
     diagonal_M = torch.diag(Mscaled)
     diagonal_WoutWin = torch.diag(WoutWin)
     offdiag_M = Mscaled - torch.diag(torch.diag(Mscaled))
     offdiag_WoutWin = WoutWin - torch.diag(torch.diag(WoutWin))
-    ax.scatter(offdiag_WoutWin.flatten(), offdiag_M.flatten(), label="Off-diagonal", alpha=0.5)
-    ax.scatter(diagonal_WoutWin.flatten(), diagonal_M.flatten(), label="Diagonal", alpha=0.7)
+    ax.scatter(offdiag_M.flatten(), offdiag_WoutWin.flatten(), label="Off-diagonal", alpha=0.5)
+    ax.scatter(diagonal_M.flatten(), diagonal_WoutWin.flatten(), label="Diagonal", alpha=0.7)
 
-    offdiag_x = offdiag_WoutWin.flatten().numpy()
-    offdiag_y = offdiag_M.flatten().numpy()
+    offdiag_x = offdiag_M.flatten().numpy()
+    offdiag_y = offdiag_WoutWin.flatten().numpy()
     slope = np.sum(offdiag_x * offdiag_y) / np.sum(offdiag_x**2)
     offdiag_y_pred = slope * offdiag_x
     ax.plot(offdiag_x, offdiag_y_pred, "r-", label=f"Off-diag fit: y={slope:.3f}x")
-    diag_x = diagonal_WoutWin.flatten().numpy()
-    diag_y = diagonal_M.flatten().numpy()
+    diag_x = diagonal_M.flatten().numpy()
+    diag_y = diagonal_WoutWin.flatten().numpy()
     diag_x_mean = np.mean(diag_x)
     diag_y_mean = np.mean(diag_y)
     slope = np.sum((diag_x - diag_x_mean) * (diag_y - diag_y_mean)) / np.sum((diag_x - diag_x_mean) ** 2)
     intercept = diag_y_mean - slope * diag_x_mean
-    x_intercept = -intercept / slope
+    y_intercept = intercept
     diag_x_range = np.linspace(np.min(diag_x), np.max(diag_x), 100)
     diag_y_pred = slope * diag_x_range + intercept
-    ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}(x-{x_intercept:.3f})")
+    ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}x+{y_intercept:.3f}")
     ax.legend()
