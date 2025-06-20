@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from jaxtyping import Float
 from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, compare_WoutWin_Mscaled, evaluate, train
+from sklearn.decomposition import NMF
 from torch import Tensor
 
 p = 0.01
@@ -75,18 +76,18 @@ for i in range(n_features):
 
 fig = plt.figure(figsize=(10, 5), constrained_layout=True)
 gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], figure=fig)
-right_gs = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs[:, 1])
-ax = fig.add_subplot(gs[:, 0])
-ax_top_left = fig.add_subplot(right_gs[0, 0])
-ax_top_right = fig.add_subplot(right_gs[0, 1])
-ax_bottom_left = fig.add_subplot(right_gs[1, 0])
-ax_bottom_right = fig.add_subplot(right_gs[1, 1])
+left_gs = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs[:, 0])
+ax = fig.add_subplot(gs[:, 1])
+ax_top_left = fig.add_subplot(left_gs[0, 0])
+ax_top_right = fig.add_subplot(left_gs[0, 1])
+ax_bottom_left = fig.add_subplot(left_gs[1, 0])
+ax_bottom_right = fig.add_subplot(left_gs[1, 1])
 ax.plot(trained_model_noisy_cosine_sims_cross, label="$\\cos(U_i, W_{\\rm out} W_{\\rm in} V_i)$")
 ax.plot(trained_model_noisy_cosine_sims_e, label="$\\cos(E_i, W_{\\rm out} W_{\\rm in} E_i)$")
 # ax.plot(trained_model_noisy_cosine_sims_u, label="$\\cos(U_i, W_{\\rm out} W_{\\rm in} U_i)$")
 # ax.plot(trained_model_noisy_cosine_sims_v, label="$\\cos(V_i, W_{\\rm out} W_{\\rm in} V_i)$")
 ax.set_title("Testing how well eigenvectors are captured by $W_{\\rm out} W_{\\rm in}$")
-ax.set_xlabel("Eigenvector index $i$ (descending eigenvalues)")
+ax.set_xlabel("Eigen- / singular vector index $i$ (descending eigenvalues)")
 ax.set_ylabel("Cosine similarity of $V_i$ with $W_{\\rm out} W_{\\rm in} V_i$")
 ax.legend(loc="lower left")
 ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
@@ -98,14 +99,16 @@ projs4 = torch.abs(einops.einsum(eigenvectors_noisy, trained_model_noisy.w_out, 
 # projs3 = torch.abs(einops.einsum(V_noisy, trained_model_noisy.w_out, "r d_out, d_mlp d_out -> r d_out"))
 # projs4 = torch.abs(einops.einsum(U_noisy, trained_model_noisy.w_in, "d_in r, d_in d_mlp -> r d_mlp"))
 
-ax_top_left.imshow(projs1.detach().cpu().numpy(), aspect="auto", cmap="magma")
-ax_top_right.imshow(projs2.detach().cpu().numpy(), aspect="auto", cmap="magma")
-ax_top_left.set_title("Noisy dataset, $V \\cdot W_{\\rm in}$")
-ax_top_right.set_title("Noisy dataset, $U \\cdot W_{\\rm out}$")
-ax_bottom_left.set_title("Noisy dataset, $E \\cdot W_{\\rm in}$")
-ax_bottom_right.set_title("Noisy dataset, $E \\cdot W_{\\rm out}$")
-ax_bottom_left.imshow(projs3.detach().cpu().numpy(), aspect="auto", cmap="magma")
-ax_bottom_right.imshow(projs4.detach().cpu().numpy(), aspect="auto", cmap="magma")
+ax_bottom_left.imshow(projs1.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
+ax_bottom_right.imshow(projs2.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
+ax_bottom_left.set_title("Noisy dataset, $V \\cdot W_{\\rm in}$")
+ax_bottom_right.set_title("Noisy dataset, $U \\cdot W_{\\rm out}$")
+ax_top_left.set_title("Noisy dataset, $E \\cdot W_{\\rm in}$")
+ax_top_right.set_title("Noisy dataset, $E \\cdot W_{\\rm out}$")
+ax_top_left.imshow(projs3.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
+ax_top_right.imshow(projs4.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
+ax_bottom_left.set_ylabel("MLP neuron index", ha="left")
+ax_bottom_left.set_xlabel("Eigen- / singular vector index", ha="left")
 
 fig.savefig("plots/nb3_eigenvecrtors_svd_comparison.png")
 plt.show()
