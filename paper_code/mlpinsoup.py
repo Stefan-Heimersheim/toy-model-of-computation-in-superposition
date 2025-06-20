@@ -1,4 +1,5 @@
 import math
+import random
 import time
 from abc import abstractmethod
 from collections.abc import Iterable
@@ -89,6 +90,8 @@ class MLP(nn.Module):
         ax.set_xlabel("Input")
         ax.set_ylabel("Output")
         ax.grid(True, alpha=0.3)
+        cbar = fig.colorbar(ScalarMappable(norm=Normalize(vmin=0, vmax=self.n_features), cmap=cmap), ax=ax)
+        cbar.set_label("Feature index")
         fig.suptitle("Input-output behaviour for individual features")
         return fig
 
@@ -157,6 +160,12 @@ class SparseDataset:
         inputs = self._generate_inputs(batch_size, p)
         labels = self._generate_labels(inputs)
         return inputs, labels
+
+    def plot_M(self, ax: plt.Axes | None = None) -> plt.Axes:
+        ax = ax or plt.subplots(constrained_layout=True)[1]
+        v = self.M.abs().max()
+        ax.matshow(self.M.cpu().detach(), cmap="RdBu", vmin=-v, vmax=v)
+        return ax
 
 
 class CleanDataset(SparseDataset):
@@ -227,7 +236,7 @@ class NoisyDataset(SparseDataset):
         if rank is None:
             M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
         elif align_to_neurons:
-            d_mlp = self.n_features // 2
+            d_mlp = self.n_features // 2  # fixme
             U_half = torch.randn(d_mlp, rank, device=self.device, generator=self.generator)
             V_half = torch.randn(d_mlp, rank, device=self.device, generator=self.generator) if not U_equals_V else U_half
             zeros = torch.zeros(self.n_features - d_mlp, rank, device=self.device)
@@ -247,6 +256,7 @@ class NoisyDataset(SparseDataset):
             M = U @ V.T
         if zero_diagonal:
             M.fill_diagonal_(0)
+            assert M[0, 0] == 0, f"Diagonal is not zero: {M[0, 0]}"
         if symmetric:
             M = torch.triu(M) + torch.triu(M, diagonal=1).T
         return M
@@ -322,10 +332,14 @@ def plot_loss_of_input_sparsity(
     for i, (model, dataset) in tqdm(enumerate(zip(models, datasets, strict=True)), total=len(models), desc="Plotting"):
         with torch.no_grad():
             losses = []
+            original_p = dataset.p
+            original_exactly_one_active_feature = dataset.exactly_one_active_feature
             for p in ps:
                 dataset.set_p(p)
                 loss = evaluate(model, dataset)
                 losses.append(loss)
+            dataset.set_p(original_p)
+            dataset.exactly_one_active_feature = original_exactly_one_active_feature
         adj_losses = np.array(losses) / ps
         color = colors[i] if colors else None
         ls = linestyles[i] if linestyles else None
@@ -386,3 +400,9 @@ def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | No
     diag_y_pred = slope * diag_x_range + intercept
     ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}x+{y_intercept:.3f}")
     ax.legend()
+
+
+def set_seed(seed: int):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
