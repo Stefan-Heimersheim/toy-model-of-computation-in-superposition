@@ -27,17 +27,7 @@ We replicate and extend experiments on a toy model introduced by [Apollo Researc
 
 ## Toy model architecture
 
-        Input x
-           │
-           ├──────────────┐
-           ▼              ▼
-           │              │
-     MLP (ReLUs)    Residual: (Wn @ x)
-           │              │
-           └──────┬───────┘
-                  ▼
-              Final Output y
-
+<img width="944" alt="model_architecture" src="https://github.com/user-attachments/assets/7858203b-3274-486a-ae3d-f5eaa7d43a29" />
 
 ## 📂 Repo Structure
 
@@ -62,4 +52,6 @@ In the root directory, just run `pixi install --manifest-path ./pyproject.toml` 
 * [Cammarata et al. (2020)](https://transformer-circuits.pub/2020/polysemanticity/index.html): Polysemanticity and neuron capacity
 * [Hänni et al. (2024)](https://arxiv.org/abs/2408.05451): Mathematical models of computation in superposition
 * [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition): Apollo Research's toy model of "compressed computation". 
+
+
 
