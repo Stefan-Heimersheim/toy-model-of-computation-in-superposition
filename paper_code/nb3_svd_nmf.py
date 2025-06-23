@@ -6,7 +6,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from jaxtyping import Float
-from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, compare_WoutWin_Mscaled, evaluate, set_seed, train
+from mlpinsoup import (
+    MLP,
+    NoisyDataset,
+    ResidTransposeDataset,
+    compare_WoutWin_Mscaled,
+    evaluate,
+    set_seed,
+    train,
+)
 from sklearn.decomposition import NMF
 from torch import Tensor
 
@@ -31,9 +39,13 @@ print(f"Trained model (noisy): {trained_final_loss_noisy / p:.3f}")
 print(f"Trained model (embed): {trained_final_loss_embed / p:.3f}")
 
 
-def get_cosine_sim_for_direction(model: MLP, v_in: Float[Tensor, "d_in"], v_out: Float[Tensor, "d_out"]) -> float:
+def get_cosine_sim_for_direction(
+    model: MLP, v_in: Float[Tensor, "d_in"], v_out: Float[Tensor, "d_out"]
+) -> float:
     """Get cosine similarity between direction d and W_out @ W_in @ d"""
-    model_transformation = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_out d_in")
+    model_transformation = einops.einsum(
+        model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_out d_in"
+    )
     projected_sv = einops.einsum(v_in, model_transformation, "d_in, d_out d_in -> d_out")
     cosine_sim = F.cosine_similarity(v_out, projected_sv, dim=0)
     return cosine_sim.item()
@@ -43,10 +55,14 @@ MplusID_noisy = noisy_dataset.Mscaled + torch.eye(n_features, device=device)
 MplusID_embed = embed_dataset.Mscaled + torch.eye(n_features, device=device)
 U_noisy, S_noisy, V_noisy = torch.linalg.svd(MplusID_noisy)
 U_embed, S_embed, V_embed = torch.linalg.svd(MplusID_embed)
-eigenvalues_noisy, eigenvectors_noisy = torch.linalg.eigh((noisy_dataset.Mscaled + noisy_dataset.Mscaled.T) / 2)
+eigenvalues_noisy, eigenvectors_noisy = torch.linalg.eigh(
+    (noisy_dataset.Mscaled + noisy_dataset.Mscaled.T) / 2
+)
 ord = torch.argsort(eigenvalues_noisy, descending=True)
 eigenvalues_noisy, eigenvectors_noisy = eigenvalues_noisy[ord], eigenvectors_noisy[:, ord]
-eigenvalues_embed, eigenvectors_embed = torch.linalg.eigh((embed_dataset.Mscaled + embed_dataset.Mscaled.T) / 2)
+eigenvalues_embed, eigenvectors_embed = torch.linalg.eigh(
+    (embed_dataset.Mscaled + embed_dataset.Mscaled.T) / 2
+)
 ord = torch.argsort(eigenvalues_embed, descending=True)
 eigenvalues_embed, eigenvectors_embed = eigenvalues_embed[ord], eigenvectors_embed[:, ord]
 
@@ -66,19 +82,27 @@ for i in range(n_features):
     v_embed = V_embed[i, :]
     e_noisy = eigenvectors_noisy[:, i]
     e_embed = eigenvectors_embed[:, i]
-    trained_model_noisy_cosine_sims_cross.append(get_cosine_sim_for_direction(trained_model_noisy, v_noisy, u_noisy))
-    trained_model_noisy_cosine_sims_e.append(get_cosine_sim_for_direction(trained_model_noisy, e_noisy, e_noisy))
-    trained_model_noisy_cosine_sims_u.append(get_cosine_sim_for_direction(trained_model_noisy, u_noisy, u_noisy))
-    trained_model_noisy_cosine_sims_v.append(get_cosine_sim_for_direction(trained_model_noisy, v_noisy, v_noisy))
+    trained_model_noisy_cosine_sims_cross.append(
+        get_cosine_sim_for_direction(trained_model_noisy, v_noisy, u_noisy)
+    )
+    trained_model_noisy_cosine_sims_e.append(
+        get_cosine_sim_for_direction(trained_model_noisy, e_noisy, e_noisy)
+    )
+    trained_model_noisy_cosine_sims_u.append(
+        get_cosine_sim_for_direction(trained_model_noisy, u_noisy, u_noisy)
+    )
+    trained_model_noisy_cosine_sims_v.append(
+        get_cosine_sim_for_direction(trained_model_noisy, v_noisy, v_noisy)
+    )
     # trained_model_embed_cosine_sims_cross.append(get_cosine_sim_for_direction(trained_model_embed, v_embed, u_embed))
     # trained_model_embed_cosine_sims_u.append(get_cosine_sim_for_direction(trained_model_embed, u_embed, u_embed))
     # trained_model_embed_cosine_sims_v.append(get_cosine_sim_for_direction(trained_model_embed, v_embed, v_embed))
     # trained_model_embed_cosine_sims_e.append(get_cosine_sim_for_direction(trained_model_embed, e_embed, e_embed))
 
-fig = plt.figure(figsize=(10, 5), constrained_layout=True)
-gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], figure=fig)
+fig = plt.figure(figsize=(12, 5), constrained_layout=True)
+gs = gridspec.GridSpec(2, 3, width_ratios=[1, 0.05, 1], figure=fig)
 left_gs = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gs[:, 0])
-ax = fig.add_subplot(gs[:, 1])
+ax = fig.add_subplot(gs[:, 2])
 ax_top_left = fig.add_subplot(left_gs[0, 0])
 ax_top_right = fig.add_subplot(left_gs[0, 1])
 ax_bottom_left = fig.add_subplot(left_gs[1, 0])
@@ -93,26 +117,44 @@ ax.set_ylabel("Cosine similarity of $V_i$ with $W_{\\rm out} W_{\\rm in} V_i$")
 ax.legend(loc="lower left")
 ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
 ax.grid(True, alpha=0.3)
-projs1 = torch.abs(einops.einsum(V_noisy, trained_model_noisy.w_in, "r d_in, d_in d_mlp -> r d_mlp"))
-projs2 = torch.abs(einops.einsum(U_noisy, trained_model_noisy.w_out, "d_out r, d_mlp d_out -> r d_mlp"))
-projs3 = torch.abs(einops.einsum(eigenvectors_noisy, trained_model_noisy.w_in, "d_in r, d_in d_mlp -> r d_mlp"))
-projs4 = torch.abs(einops.einsum(eigenvectors_noisy, trained_model_noisy.w_out, "d_out r, d_mlp d_out -> r d_mlp"))
-# projs3 = torch.abs(einops.einsum(V_noisy, trained_model_noisy.w_out, "r d_out, d_mlp d_out -> r d_out"))
-# projs4 = torch.abs(einops.einsum(U_noisy, trained_model_noisy.w_in, "d_in r, d_in d_mlp -> r d_mlp"))
+projs1 = einops.einsum(V_noisy, trained_model_noisy.w_in, "r d_in, d_in d_mlp -> r d_mlp")
+projs2 = einops.einsum(U_noisy, trained_model_noisy.w_out, "d_out r, d_mlp d_out -> r d_mlp")
+projs3 = einops.einsum(
+    eigenvectors_noisy, trained_model_noisy.w_in, "d_in r, d_in d_mlp -> r d_mlp"
+)
+projs4 = einops.einsum(
+    eigenvectors_noisy, trained_model_noisy.w_out, "d_out r, d_mlp d_out -> r d_mlp"
+)
 
-ax_bottom_left.imshow(projs1.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
-ax_bottom_right.imshow(projs2.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
+# Calculate global min/max for shared colorbar
+all_projs = torch.cat([projs1.flatten(), projs2.flatten(), projs3.flatten(), projs4.flatten()])
+vmin, vmax = all_projs.min().item(), all_projs.max().item()
+
+im1 = ax_bottom_left.imshow(
+    projs1.T.detach().cpu().numpy(), aspect="auto", cmap="RdBu_r", vmin=vmin, vmax=vmax
+)
+im2 = ax_bottom_right.imshow(
+    projs2.T.detach().cpu().numpy(), aspect="auto", cmap="RdBu_r", vmin=vmin, vmax=vmax
+)
+im3 = ax_top_left.imshow(
+    projs3.T.detach().cpu().numpy(), aspect="auto", cmap="RdBu_r", vmin=vmin, vmax=vmax
+)
+im4 = ax_top_right.imshow(
+    projs4.T.detach().cpu().numpy(), aspect="auto", cmap="RdBu_r", vmin=vmin, vmax=vmax
+)
+
+# Add shared colorbar
+cbar_ax = fig.add_subplot(gs[:, 1])
+fig.colorbar(im1, cax=cbar_ax)
+
 ax_bottom_left.set_title("Noisy dataset, $V \\cdot W_{\\rm in}$")
 ax_bottom_right.set_title("Noisy dataset, $U \\cdot W_{\\rm out}$")
 ax_top_left.set_title("Noisy dataset, $E \\cdot W_{\\rm in}$")
 ax_top_right.set_title("Noisy dataset, $E \\cdot W_{\\rm out}$")
-ax_top_left.imshow(projs3.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
-ax_top_right.imshow(projs4.T.detach().cpu().numpy(), aspect="auto", cmap="magma")
 ax_bottom_left.set_ylabel("MLP neuron index", ha="left")
 ax_bottom_left.set_xlabel("Eigen- / singular vector index", ha="left")
 
 fig.savefig("plots/nb3_eigenvecrtors_svd_comparison.png")
-plt.show()
 
 #  %% Compare W_out @ W_in and M_scaled entry correlation & plot weights
 fig = plt.figure(constrained_layout=True, figsize=(10, 5))
@@ -134,7 +176,9 @@ scales = []
 losses = []
 models = []
 for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.04]:
-    noisy_dataset_nmf = NoisyDataset(n_features, p, device=device, exactly_one_active_feature=True, scale=scale)
+    noisy_dataset_nmf = NoisyDataset(
+        n_features, p, device=device, exactly_one_active_feature=True, scale=scale
+    )
     target_matrix = np.eye(n_features) + noisy_dataset_nmf.Mscaled.cpu().detach().numpy()
     # NMF
     nmf = NMF(n_components=d_mlp, init="random", random_state=42, max_iter=5000)
