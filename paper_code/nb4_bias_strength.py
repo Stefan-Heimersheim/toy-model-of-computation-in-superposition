@@ -44,13 +44,13 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
         )
     optimal_bias_strengths[bias_p] = bias_strengths[opt_idx]
 
-ax1.axhline(0.083, color="k", ls="--", label="Naive solution")
+ax1.axhline(0.083, color="k", ls="--", label="Naive loss")
 ax1.legend()
 ax1.set_xlabel("Offset strength")
 ax1.set_ylabel("Loss per feature $L / p$")
 ax1.set_xscale("log")
 ax1.grid(True, alpha=0.3)
-ax1.set_title("Loss vs offset strengths for different feature probabilities")
+ax1.set_title("Loss vs offset strength")
 
 
 plot_ps = np.geomspace(0.001, 1, 100)
@@ -91,12 +91,12 @@ plot_loss_of_input_sparsity(
     ax=ax2,
 )
 ax2.legend().remove()
-ax2.axhline(y=0.0833, color="k", ls=":", label="Naive loss")
 ax2.plot([], [], color="k", ls="-", label="Trained model")
 ax2.plot([], [], color="k", ls="--", label="Naive model")
+ax2.axhline(y=0.0833, color="k", ls=":", label="Naive loss")
 ax2.legend(loc="upper left", ncols=2, title="Feature probability")
 ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
 ax2.grid(True, alpha=0.3)
-ax2.set_title("Loss across a range of evaluation feature probabilities")
-fig.suptitle("Trained vs handcoded models on the clean label")
+ax2.set_title("Loss vs input feature probability")
+fig.suptitle("Trained vs handcoded models on the clean dataset for different training feature probabilities")
 fig.savefig("plots/nb4_opt_offset_and_comparison.png")
