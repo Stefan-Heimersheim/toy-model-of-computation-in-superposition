@@ -11,7 +11,6 @@ n_features = 100
 d_mlp = 50
 n_steps = 10_000
 batch_size_train = 2048
-
 set_seed(42)
 
 sns_colorblind = get_sns_colorblind()

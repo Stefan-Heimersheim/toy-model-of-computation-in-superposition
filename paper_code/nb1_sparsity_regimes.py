@@ -10,10 +10,11 @@ from jaxtyping import Float
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, plot_loss_of_input_sparsity, train
+from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, plot_loss_of_input_sparsity, set_seed, train
 from torch import Tensor
 
 sns.set_style("whitegrid")
+set_seed(42)
 
 # Input feature probabilities to test
 plot_ps = np.geomspace(0.001, 1, 100)

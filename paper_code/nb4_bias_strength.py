@@ -4,14 +4,9 @@ import matplotlib.colors as mc
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from mlpinsoup import MLP, CleanDataset, evaluate, plot_loss_of_input_sparsity, train
+from mlpinsoup import MLP, CleanDataset, evaluate, plot_loss_of_input_sparsity, set_seed, train
 
-
-def make_dark_color(color):
-    """https://stackoverflow.com/questions/37765197/darken-or-lighten-a-color-in-matplotlib"""
-    hls = colorsys.rgb_to_hls(*mc.to_rgb(color))
-    darker_hls = (hls[0], 1 - (1 - hls[1]) * 1.5, hls[2])
-    return colorsys.hls_to_rgb(*darker_hls)
+set_seed(42)
 
 
 bias_ps = ["0.001", "0.01", "0.1", "1"]

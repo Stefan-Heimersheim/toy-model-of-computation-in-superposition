@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from jaxtyping import Float
-from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, compare_WoutWin_Mscaled, evaluate, train
+from mlpinsoup import MLP, NoisyDataset, ResidTransposeDataset, compare_WoutWin_Mscaled, evaluate, set_seed, train
 from sklearn.decomposition import NMF
 from torch import Tensor
 
@@ -17,6 +17,7 @@ n_steps = 20_000
 batch_size_train = 2048
 d_embed = 1000
 device = "cuda" if torch.cuda.is_available() else "cpu"
+set_seed(42)
 
 noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=0.03)
 embed_dataset = ResidTransposeDataset(n_features=n_features, d_embed=d_embed, p=p)
