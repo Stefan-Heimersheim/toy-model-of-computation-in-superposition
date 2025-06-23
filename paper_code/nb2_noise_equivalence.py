@@ -99,11 +99,12 @@ fig_ft, ax_ft = plt.subplots(constrained_layout=True, figsize=(6.4, 3))
 losses_noisy_avg = np.convolve(losses_noisy, np.ones(100) / 100, mode="valid")
 losses_clean_ft_avg = np.convolve(losses_clean_ft, np.ones(100) / 100, mode="valid")
 scale = noise_dataset.scale.abs().item()
-ax_ft.plot(np.arange(len(losses_noisy_avg)), losses_noisy_avg / p, label=f"Train with $M \\sim \\mathcal{{N}}(0, {scale:.3f}^2)$")
+ax_ft.plot(np.arange(len(losses_noisy_avg)), losses_noisy_avg / p, label=f"Train with $M \\sim \\mathcal{{N}}(0, {scale:.3f}^2)$", color=sns_colorblind[0])
 ax_ft.plot(
     np.arange(len(losses_noisy_avg) - 1, len(losses_noisy_avg) + len(losses_clean_ft_avg)),
     np.concatenate([losses_noisy_avg[-1:], losses_clean_ft_avg]) / p,
     label="Fine-tune with $M = 0$",
+    color=sns_colorblind[1],
 )
 ax_ft.set_ylabel("Loss per feature $L / p$ (running average)")
 ax_ft.set_xlabel("Training step")
