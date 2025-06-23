@@ -21,7 +21,7 @@ plot_ps = np.geomspace(0.001, 1, 100)
 str_train_ps = ["0.001", "0.002", "0.005", "0.01", "0.02", "0.05", "0.1", "0.2", "0.5", "1"]
 # Dataset following Braun et al. 2025
 # apd_dataset = ResidTransposeDataset(n_features=100, d_embed=1000, p=0)
-apd_dataset = NoisyDataset(n_features=100, p=0, scale=0.02, zero_diagonal=False)
+apd_dataset = NoisyDataset(n_features=100, p=0, scale=0.02)
 
 models, labels = [], []
 for str_p in str_train_ps:

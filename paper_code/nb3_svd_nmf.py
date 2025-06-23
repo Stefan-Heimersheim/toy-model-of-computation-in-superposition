@@ -18,7 +18,7 @@ batch_size_train = 2048
 d_embed = 1000
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-noisy_dataset = NoisyDataset(n_features=n_features, p=p, zero_diagonal=False, symmetric=False, scale=0.035)
+noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=0.03)
 embed_dataset = ResidTransposeDataset(n_features=n_features, d_embed=d_embed, p=p)
 trained_model_noisy = MLP(n_features=n_features, d_mlp=d_mlp)
 trained_model_embed = MLP(n_features=n_features, d_mlp=d_mlp)
@@ -178,6 +178,6 @@ ax.legend()
 fig.savefig("plots/nb3b_semi_nmf_solution.png")
 plt.show()
 
-for model in models:
-    model.plot_weights()
-    compare_WoutWin_Mscaled(model, noisy_dataset_nmf)
+# for model in models:
+#     model.plot_weights()
+#     compare_WoutWin_Mscaled(model, noisy_dataset_nmf)

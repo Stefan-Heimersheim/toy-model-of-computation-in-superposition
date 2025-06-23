@@ -216,9 +216,9 @@ class NoisyDataset(SparseDataset):
         self,
         n_features: int,
         p: float,
+        scale: float | nn.Parameter,
         device: str | None = None,
         seed: int | None = None,
-        scale: float | nn.Parameter = 0.0225,
         exactly_one_active_feature: bool = False,
         **kwargs,
     ):
@@ -234,7 +234,7 @@ class NoisyDataset(SparseDataset):
         self,
         rank: int | None = None,
         symmetric: bool = False,
-        zero_diagonal: bool = True,
+        zero_diagonal: bool = False,
         U_equals_V: bool = False,  # only used if rank is not None
         normalize_rows: bool = False,  # only used if rank is not None
         flat_spectrum: bool = False,  # only used if rank is not None
@@ -375,7 +375,7 @@ def plot_loss_of_input_sparsity(
     return fig
 
 
-def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | None = None) -> plt.Figure:
+def compare_WoutWin_Mscaled(model: MLP, dataset: SparseDataset, ax: plt.Axes | None = None) -> plt.Figure:
     WoutWin = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_out d_in").cpu().detach()
     Mscaled = dataset.Mscaled.cpu().detach()
     sns_colorblind = get_sns_colorblind()

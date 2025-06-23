@@ -27,12 +27,12 @@ losses_resid_transpose = train(resid_transpose_model, resid_transpose_dataset, b
 sigma_embed = resid_transpose_dataset.Mscaled.std().item()
 
 scale_asym = nn.Parameter(torch.tensor(0.01))
-noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_asym, symmetric=False, zero_diagonal=False)
+noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_asym, symmetric=False)
 noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
 losses_noisy = train(noisy_model, noise_dataset, batch_size=batch_size_train, steps=n_steps)
 
 scale_sym = nn.Parameter(torch.tensor(0.01))
-symmetric_noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_sym, symmetric=True, zero_diagonal=False)
+symmetric_noise_dataset = NoisyDataset(n_features=n_features, p=p, scale=scale_sym, symmetric=True)
 symmetric_noise_model = MLP(n_features=n_features, d_mlp=d_mlp)
 losses_noise_sym = train(symmetric_noise_model, symmetric_noise_dataset, batch_size=batch_size_train, steps=n_steps)
 
@@ -61,8 +61,8 @@ sym_models, sym_datasets, sym_losses = [], [], []
 asym_models, asym_datasets, asym_losses = [], [], []
 
 for i, noise_level in enumerate(noise_levels):
-    sym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, exactly_one_active_feature=True, symmetric=True, zero_diagonal=True)
-    asym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, exactly_one_active_feature=True, symmetric=False, zero_diagonal=True)
+    sym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, symmetric=True)
+    asym_noisy_dataset = NoisyDataset(n_features=n_features, p=p, scale=noise_level, symmetric=False)
     sym_noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
     asym_noisy_model = MLP(n_features=n_features, d_mlp=d_mlp)
     train(sym_noisy_model, sym_noisy_dataset, batch_size=batch_size_train, steps=n_steps)
