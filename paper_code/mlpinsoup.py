@@ -1,18 +1,27 @@
 import math
+import random
 import time
 from abc import abstractmethod
 from collections.abc import Iterable
-from typing import Callable
+from typing import Callable, Literal
 
 import einops
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import seaborn as sns
 import torch
 import torch.nn.functional as F
 from jaxtyping import Float
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 from torch import Tensor, nn
 from tqdm import tqdm
+
+
+def get_sns_colorblind():
+    return ["#0173b2", "#de8f05", "#029e73", "#d55e00", "#cc78bc", "#ca9161", "#fbafe4", "#949494", "#ece133", "#56b4e9"]
 
 
 class MLP(nn.Module):
@@ -85,8 +94,38 @@ class MLP(nn.Module):
         ax.set_xlabel("Input")
         ax.set_ylabel("Output")
         ax.grid(True, alpha=0.3)
+        cbar = fig.colorbar(ScalarMappable(norm=Normalize(vmin=0, vmax=self.n_features), cmap=cmap), ax=ax)
+        cbar.set_label("Feature index")
         fig.suptitle("Input-output behaviour for individual features")
         return fig
+
+    def plot_weight_bars(self, bar_label: str = "MLP neuron index", cmap: bool = True, ax: plt.Axes | None = None) -> plt.Axes:
+        """Plots weights for each input_feature-hidden_neuron pair as stacked bars. Closely follows Jai's toy-model-of-computation-in-superposition/toy_cis/plot.py"""
+        palette = "inferno"
+        W = einops.einsum(self.w_in, self.w_out, "n_features d_mlp, d_mlp n_features -> d_mlp n_features")
+        W = W.cpu().detach().numpy()
+        d_mlp, n_features = W.shape
+        x = np.arange(n_features)
+        colors = sns.color_palette(palette, d_mlp)
+        fig, ax = plt.subplots(constrained_layout=True) if ax is None else (ax.get_figure(), ax)
+        bottom_pos = np.zeros(n_features)
+        bottom_neg = np.zeros(n_features)
+        for i in range(d_mlp):
+            mask_pos = W[i] >= 0
+            mask_neg = W[i] < 0
+            if np.any(mask_pos):
+                ax.bar(x[mask_pos], W[i][mask_pos], bottom=bottom_pos[mask_pos], label=f"{bar_label} {i}", color=colors[i])
+                bottom_pos[mask_pos] += W[i][mask_pos]
+            if np.any(mask_neg):
+                ax.bar(x[mask_neg], W[i][mask_neg], bottom=bottom_neg[mask_neg], label=f"{bar_label} {i}", color=colors[i])
+                bottom_neg[mask_neg] += W[i][mask_neg]
+        if cmap:
+            sm = ScalarMappable(norm=Normalize(vmin=1, vmax=d_mlp), cmap=mpl.colormaps[palette])
+            sm.set_array([])
+            cbar = fig.colorbar(sm, ax=ax)  # type: ignore
+            cbar.set_label(bar_label)
+        ax.set_xlim(-0.5, n_features - 0.5)
+        return ax
 
 
 class SparseDataset:
@@ -125,6 +164,12 @@ class SparseDataset:
         inputs = self._generate_inputs(batch_size, p)
         labels = self._generate_labels(inputs)
         return inputs, labels
+
+    def plot_M(self, ax: plt.Axes | None = None) -> plt.Axes:
+        ax = ax or plt.subplots(constrained_layout=True)[1]
+        v = self.M.abs().max()
+        ax.matshow(self.M.cpu().detach(), cmap="RdBu", vmin=-v, vmax=v)
+        return ax
 
 
 class CleanDataset(SparseDataset):
@@ -166,18 +211,14 @@ class NoisyDataset(SparseDataset):
         self,
         n_features: int,
         p: float,
-        device: str = None,
+        device: str | None = None,
         seed: int | None = None,
-        rank: int | None = None,
-        symmetric: bool = False,
-        U_equals_V: bool = False,  # only used if rank is not None
-        normalize_rows: bool = False,  # only used if rank is not None
-        zero_diagonal: bool = True,
         scale: float | nn.Parameter = 0.0225,
         exactly_one_active_feature: bool = False,
+        **kwargs,
     ):
         super().__init__(n_features, p, device=device, seed=seed, exactly_one_active_feature=exactly_one_active_feature)
-        self.M = self._generate_M(rank=rank, symmetric=symmetric, zero_diagonal=zero_diagonal, U_equals_V=U_equals_V, normalize_rows=normalize_rows)
+        self.M = self._generate_M(**kwargs)
         self.scale = torch.tensor(scale, device=self.device) if isinstance(scale, float) else scale
 
     @property
@@ -191,18 +232,35 @@ class NoisyDataset(SparseDataset):
         zero_diagonal: bool = True,
         U_equals_V: bool = False,  # only used if rank is not None
         normalize_rows: bool = False,  # only used if rank is not None
+        flat_spectrum: bool = False,  # only used if rank is not None
+        align_to_neurons: bool = False,  # only used if rank is not None
     ) -> Float[Tensor, "n_features n_features"]:
+        if U_equals_V and not zero_diagonal:
+            print("Warning: U_equals_V is True but zero_diagonal is False, this will result in a priviledged diagonal")
         if rank is None:
             M = torch.randn(self.n_features, self.n_features, device=self.device, generator=self.generator)
+        elif align_to_neurons:
+            d_mlp = self.n_features // 2  # fixme
+            U_half = torch.randn(d_mlp, rank, device=self.device, generator=self.generator)
+            V_half = torch.randn(d_mlp, rank, device=self.device, generator=self.generator) if not U_equals_V else U_half
+            zeros = torch.zeros(self.n_features - d_mlp, rank, device=self.device)
+            U = torch.cat([U_half, zeros], dim=0)
+            V = torch.cat([V_half, zeros], dim=0)
+            M = U @ V.T
         else:
             U = torch.randn(self.n_features, rank, device=self.device, generator=self.generator)
             V = torch.randn(self.n_features, rank, device=self.device, generator=self.generator) if not U_equals_V else U
+            if flat_spectrum:
+                U, _ = torch.linalg.qr(U)
+                V, _ = torch.linalg.qr(V)
+                assert U.shape == (self.n_features, rank) and V.shape == (self.n_features, rank)
             if normalize_rows:
                 U = F.normalize(U, dim=1)
                 V = F.normalize(V, dim=1)
             M = U @ V.T
         if zero_diagonal:
             M.fill_diagonal_(0)
+            assert M[0, 0] == 0, f"Diagonal is not zero: {M[0, 0]}"
         if symmetric:
             M = torch.triu(M) + torch.triu(M, diagonal=1).T
         return M
@@ -211,11 +269,12 @@ class NoisyDataset(SparseDataset):
         return self.relu(inputs) + einops.einsum(self.Mscaled, inputs, "n_out n_in, batch n_in -> batch n_out")
 
 
-def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int = 10_000) -> list[float]:
+def train(model: MLP, dataset: SparseDataset, batch_size: int = 2048, steps: int = 10_000, cosine_scheduler: bool = True) -> list[float]:
     parameters = list(model.parameters())
     if isinstance(dataset, NoisyDataset) and isinstance(dataset.scale, nn.Parameter):
         parameters.append(dataset.scale)
-    optimizer = torch.optim.AdamW(parameters, lr=1e-3, weight_decay=1e-2)
+    optimizer = torch.optim.AdamW(parameters, lr=3e-3, weight_decay=1e-2)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=steps) if cosine_scheduler else None
     losses = []
     pbar = tqdm(range(steps), desc="Training")
     for step in pbar:
@@ -225,6 +284,8 @@ def train(model: MLP, dataset: SparseDataset, batch_size: int = 1024, steps: int
         loss = ((outputs - labels) ** 2).mean()
         loss.backward()
         optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
         losses.append(loss.item())
         if step % 100 == 0:
             pbar.set_postfix({"loss": loss.item()})
@@ -275,14 +336,18 @@ def plot_loss_of_input_sparsity(
     for i, (model, dataset) in tqdm(enumerate(zip(models, datasets, strict=True)), total=len(models), desc="Plotting"):
         with torch.no_grad():
             losses = []
+            original_p = dataset.p
+            original_exactly_one_active_feature = dataset.exactly_one_active_feature
             for p in ps:
                 dataset.set_p(p)
                 loss = evaluate(model, dataset)
                 losses.append(loss)
+            dataset.set_p(original_p)
+            dataset.exactly_one_active_feature = original_exactly_one_active_feature
         adj_losses = np.array(losses) / ps
-        color = colors[i] if colors else None
-        ls = linestyles[i] if linestyles else None
-        label = labels[i] if labels else None
+        color = colors[i] if colors is not None else None
+        ls = linestyles[i] if linestyles is not None else None
+        label = labels[i] if labels is not None else None
         ax.plot(ps, adj_losses, label=label, color=color, ls=ls)
         if highlight_ps is not None:
             with torch.no_grad():
@@ -291,23 +356,58 @@ def plot_loss_of_input_sparsity(
                 loss_at_p = evaluate(model, dataset)
                 highlight_adj_losses.append(loss_at_p / p)
     if show_naive:
-        ax.plot(ps, naive_adj_losses, color="k", ls="--", label="Naive solution")
+        ax.plot(ps, naive_adj_losses, color="k", ls="--", label="Naive loss")
     if highlight_ps is not None:
-        ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":")
+        ax.plot(highlight_ps, highlight_adj_losses, color="k", marker="o", ls=":", label="p_eval = p_train")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("$p$")
-    ax.set_ylabel("$L / p$")
+    ax.set_xlabel("Feature probability $p$")
+    ax.set_ylabel("Loss per feature $L / p$")
     ax.set_yticks([0.1, 0.09, 0.08, 0.07, 0.06])
-    ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter()) 
+    ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
     ax.legend(ncols=3, loc="upper left")
     ax.grid(True, alpha=0.3)
     return fig
 
 
-def get_cosine_sim_for_direction(model: MLP, d: Float[Tensor, "d_in"]) -> float:
-    """Get cosine similarity between direction d and W_out @ W_in @ d"""
-    model_transformation = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_in d_out")
-    projected_sv = einops.einsum(d, model_transformation, "d_in, d_in d_out -> d_out")
-    cosine_sim = F.cosine_similarity(d, projected_sv, dim=0)
-    return cosine_sim.item()
+def compare_WoutWin_Mscaled(model: MLP, dataset: NoisyDataset, ax: plt.Axes | None = None) -> plt.Figure:
+    WoutWin = einops.einsum(model.w_in, model.w_out, "d_in d_mlp, d_mlp d_out -> d_out d_in").cpu().detach()
+    Mscaled = dataset.Mscaled.cpu().detach()
+    sns_colorblind = get_sns_colorblind()
+    ax = ax or plt.subplots(constrained_layout=True)[1]
+    fig = ax.get_figure()
+    ax.set_title("Correlation of entries of $M$ and $W_{\\rm out} W_{\\rm in}$")
+    ax.set_ylabel("$(W_{\\rm out} W_{\\rm in})_{i,j}$")
+    ax.set_xlabel("$M_{i,j}$")
+    # ax.scatter(Mscaled.flatten(), WoutWin.flatten())
+
+    diagonal_M = torch.diag(Mscaled)
+    diagonal_WoutWin = torch.diag(WoutWin)
+    offdiag_M = Mscaled - torch.diag(torch.diag(Mscaled))
+    offdiag_WoutWin = WoutWin - torch.diag(torch.diag(WoutWin))
+    ax.scatter(offdiag_M.flatten(), offdiag_WoutWin.flatten(), label="Off-diagonal", marker=".", color=sns_colorblind[0])
+    ax.scatter(diagonal_M.flatten(), diagonal_WoutWin.flatten(), label="Diagonal", marker=".", color=sns_colorblind[1])
+
+    offdiag_x = offdiag_M.flatten().numpy()
+    offdiag_y = offdiag_WoutWin.flatten().numpy()
+    slope = np.sum(offdiag_x * offdiag_y) / np.sum(offdiag_x**2)
+    offdiag_y_pred = slope * offdiag_x
+    ax.plot(offdiag_x, offdiag_y_pred, "r-", label=f"Off-diag fit: y={slope:.3f}x", color=sns_colorblind[2])
+    diag_x = diagonal_M.flatten().numpy()
+    diag_y = diagonal_WoutWin.flatten().numpy()
+    diag_x_mean = np.mean(diag_x)
+    diag_y_mean = np.mean(diag_y)
+    slope = np.sum((diag_x - diag_x_mean) * (diag_y - diag_y_mean)) / np.sum((diag_x - diag_x_mean) ** 2)
+    intercept = diag_y_mean - slope * diag_x_mean
+    y_intercept = intercept
+    diag_x_range = np.linspace(np.min(diag_x), np.max(diag_x), 100)
+    diag_y_pred = slope * diag_x_range + intercept
+    ax.plot(diag_x_range, diag_y_pred, "g-", label=f"Diag fit: y={slope:.3f}x+{y_intercept:.3f}", color=sns_colorblind[3])
+    ax.legend()
+    return fig
+
+
+def set_seed(seed: int):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)

@@ -14,29 +14,35 @@ def effective_rank(M):
 
 # Parameters
 p, n_features, d_mlp = 0.01, 100, 50
-n_steps = 25_000
+n_steps = 10_000
 baseline_scale = 0.035
 device = "cuda" if torch.cuda.is_available() else "cpu"
-ranks = [None, 100, 50, 20, 15, 10, 7, 5]
+ranks = [10, 20, 50, 100, None]
 
 results = []
+models = []
 
 # Train models with learnable scale
 for rank in ranks:
     model = MLP(n_features, d_mlp, device)
     scale = nn.Parameter(torch.tensor(0.01, device=device))
-    dataset = NoisyDataset(n_features, p, device=device, rank=rank, scale=scale, exactly_one_active_feature=True)
+    dataset = NoisyDataset(n_features, p, device=device, rank=rank, scale=scale, exactly_one_active_feature=True, flat_spectrum=True, zero_diagonal=False, U_equals_V=False, normalize_rows=False, symmetric=True, align_to_neurons=False)
+    # dataset = NoisyDataset(n_features, p, device=device, rank=rank, scale=scale, exactly_one_active_feature=True, flat_spectrum=True, zero_diagonal=True, U_equals_V=True, normalize_rows=False, symmetric=False, align_to_neurons=True)
+    # dataset = NoisyDataset(n_features, p, device=device, rank=rank, scale=scale, exactly_one_active_feature=True, flat_spectrum=True, zero_diagonal=True, U_equals_V=True, normalize_rows=False, symmetric=False, align_to_neurons=False)
     train(model, dataset, steps=n_steps)
+    models.append(model)
     loss = evaluate(model, dataset, n_samples=1_000_000) / p
-    results.append({"rank": rank, "model": model, "dataset": dataset, "loss": loss, "scale": abs(scale.item()), "effective_rank": effective_rank(dataset.M), "svd_vals": torch.linalg.svdvals(dataset.M * scale.detach()).cpu()})
-    print(f"Rank {rank}: loss/p={loss:.4f}, scale={abs(scale.item()):.4f}")
+    results.append({"rank": rank, "model": model, "dataset": dataset, "loss": loss, "scale": abs(scale).item(), "effective_rank": effective_rank(dataset.Mscaled), "svd_vals": torch.linalg.svdvals(dataset.Mscaled).cpu().detach()})
+    print(f"Rank {rank}: loss/p={loss:.4f}, scale={abs(scale).item():.4f}")
+    model.plot_weights()
+
 
 # Baseline with fixed scale
 baseline_model = MLP(n_features, d_mlp, device)
 baseline_dataset = NoisyDataset(n_features, p, device=device, scale=baseline_scale, exactly_one_active_feature=True)
 train(baseline_model, baseline_dataset, steps=n_steps)
 baseline_loss = evaluate(baseline_model, baseline_dataset, n_samples=1_000_000) / p
-baseline_eff_rank = effective_rank(baseline_dataset.M)
+baseline_eff_rank = effective_rank(baseline_dataset.Mscaled)
 results.append({"rank": "Baseline", "model": baseline_model, "dataset": baseline_dataset, "loss": baseline_loss, "scale": baseline_scale, "effective_rank": baseline_eff_rank, "svd_vals": torch.linalg.svdvals(baseline_dataset.M * baseline_dataset.scale).cpu()})
 print(f"Baseline: loss/p={baseline_loss:.4f}, scale={baseline_scale}")
 
