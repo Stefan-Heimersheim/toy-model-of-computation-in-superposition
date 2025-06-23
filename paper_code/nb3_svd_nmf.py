@@ -172,7 +172,7 @@ for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.04]:
 fig, ax = plt.subplots(constrained_layout=True, figsize=(6.4, 3))
 ax.plot(scales, losses, label="Semi-NMF solution", marker="o")
 ax.axhline(y=0.0833, color="k", ls="--", label="Naive loss")
-ax.set_xlabel("Dataset label noise scale $\\sigma$")
+ax.set_xlabel("Mixing matrix magnitude $\\sigma$")
 ax.set_ylabel("Loss per feature $L / p$")
 ax.grid(True, alpha=0.3)
 ax.legend()

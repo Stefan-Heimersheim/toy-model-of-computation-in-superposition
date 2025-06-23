@@ -82,7 +82,7 @@ for i, (sym_noisy_model, sym_noisy_dataset, asym_noisy_model, asym_noisy_dataset
 ax2.plot(noise_levels, np.array(sym_losses) / p, marker="o", label="Symmetric noise", color=sns_colorblind[2])
 ax2.plot(noise_levels, np.array(asym_losses) / p, marker="o", label="Asymmetric noise", color=sns_colorblind[3])
 ax2.axhline(0.083, color="k", ls="--", label="Naive solution")
-ax2.set_xlabel("Label noise scale $\\sigma$")
+ax2.set_xlabel("Mixing matrix magnitude $\\sigma$")
 ax2.set_ylabel("Loss per feature $L / p$")
 ax2.legend()
 ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())

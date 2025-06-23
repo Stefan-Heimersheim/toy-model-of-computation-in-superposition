@@ -33,7 +33,7 @@ for bias_p, bias_color in zip(bias_ps, bias_colors):
         ax1.text(
             bias_strengths[opt_idx],
             losses[opt_idx],
-            f"Optimal bias: {bias_strengths[opt_idx]:.3f}  ",
+            f"Optimal offset: {bias_strengths[opt_idx]:.3f}  ",
             ha="right",
             va="top",
         )
@@ -87,7 +87,7 @@ plot_loss_of_input_sparsity(
 )
 ax2.legend().remove()
 ax2.plot([], [], color="k", ls="-", label="Trained model")
-ax2.plot([], [], color="k", ls="--", label="Naive model")
+ax2.plot([], [], color="k", ls="--", label="Naive + offset model")
 ax2.axhline(y=0.0833, color="k", ls=":", label="Naive loss")
 ax2.legend(loc="upper left", ncols=2, title="Feature probability")
 ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
