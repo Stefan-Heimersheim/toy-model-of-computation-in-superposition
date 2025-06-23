@@ -88,6 +88,7 @@ ax2.set_ylabel("Loss per feature $L / p$")
 ax2.legend()
 ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
 ax2.grid(True, alpha=0.3)
+ax2.set_title("Loss over a range of mixing matrix magnitudes")
 fig.savefig("plots/nb2_noise_comparison_and_optimum.png")
 plt.show()
 

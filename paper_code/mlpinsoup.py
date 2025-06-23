@@ -345,9 +345,9 @@ def plot_loss_of_input_sparsity(
             dataset.set_p(original_p)
             dataset.exactly_one_active_feature = original_exactly_one_active_feature
         adj_losses = np.array(losses) / ps
-        color = colors[i] if colors else None
-        ls = linestyles[i] if linestyles else None
-        label = labels[i] if labels else None
+        color = colors[i] if colors is not None else None
+        ls = linestyles[i] if linestyles is not None else None
+        label = labels[i] if labels is not None else None
         ax.plot(ps, adj_losses, label=label, color=color, ls=ls)
         if highlight_ps is not None:
             with torch.no_grad():
@@ -363,6 +363,7 @@ def plot_loss_of_input_sparsity(
     ax.set_yscale("log")
     ax.set_xlabel("Feature probability $p$")
     ax.set_ylabel("Loss per feature $L / p$")
+    ax.set_yticks([0.1, 0.09, 0.08, 0.07, 0.06])
     ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
     ax.legend(ncols=3, loc="upper left")
     ax.grid(True, alpha=0.3)
