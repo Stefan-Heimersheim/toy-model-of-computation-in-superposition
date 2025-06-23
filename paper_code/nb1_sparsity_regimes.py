@@ -36,18 +36,8 @@ for str_p in str_train_ps:
 
 train_ps = [float(p) for p in str_train_ps]
 
-
-# Generate colours
-def get_gradient_colors(start_hex: str, end_hex: str, n_lines: int) -> list[str]:
-    # Convert hex to RGB (0-1 range)
-    start_rgb = np.array(mcolors.to_rgb(start_hex))
-    end_rgb = np.array(mcolors.to_rgb(end_hex))
-
-    # Create linear gradient between start and end
-    return [mcolors.to_hex(start_rgb + (end_rgb - start_rgb) * i / (n_lines - 1)) for i in range(n_lines)]  # type: ignore
-
-
-colors = get_gradient_colors("#1abc9c", "#9b59b6", len(str_train_ps))  # purple to teal gradient
+colors = plt.get_cmap("viridis")(np.linspace(0.15, 0.85, len(str_train_ps)))
+colors = [mcolors.to_hex(c) for c in colors]  # Convert to hex strings for compatibility
 fig = plot_loss_of_input_sparsity(models, apd_dataset, ps=plot_ps, labels=labels, highlight_ps=train_ps, colors=colors)
 fig.suptitle("Loss over input sparsity for different input feature probabilities $p$")
 fig.savefig("./plots/nb1_sparsity_regimes.png")
@@ -55,15 +45,12 @@ fig.savefig("./plots/nb1_sparsity_regimes.png")
 # Plot the input-output behaviour of one sparse and dense model, for illustration
 fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5), sharey=True)  # type: ignore
 fig.suptitle("Input-output behaviour for individual features")
-models[0].plot_input_output_behaviour(ax1)
+models[0].plot_input_output_behaviour(ax1, palette="plasma")
 ax1.set_title("p=" + str_train_ps[0])
 ax1.grid(True, alpha=0.3)
 x = torch.linspace(-1, 1, 100)
 ax1.plot(x, F.relu(x), color="tab:red", ls="--")
-norm = Normalize(vmin=0, vmax=100)
-sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
-fig.colorbar(sm, ax=ax2, fraction=0.046, pad=0.04, label="Feature index")
-models[-1].plot_input_output_behaviour(ax2)
+models[-1].plot_input_output_behaviour(ax2, palette="plasma")
 ax2.plot(x, F.relu(x), color="tab:red", ls="--")
 ax2.set_title("p=" + str_train_ps[-1])
 ax2.grid(True, alpha=0.3)

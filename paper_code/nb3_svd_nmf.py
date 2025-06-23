@@ -113,14 +113,18 @@ ax_bottom_left.set_xlabel("Eigen- / singular vector index", ha="left")
 fig.savefig("plots/nb3_eigenvecrtors_svd_comparison.png")
 plt.show()
 
-#  %% Compare W_out @ W_in and M_scaled entry correlation
-
-fig = compare_WoutWin_Mscaled(trained_model_noisy, noisy_dataset)
-fig.savefig("plots/nb3a_WoutWin_Mscaled_noisy.png")
-
-# %% Plot weights
-fig = trained_model_noisy.plot_weights()
-fig.savefig("plots/nb3b_weights_noisy.png")
+#  %% Compare W_out @ W_in and M_scaled entry correlation & plot weights
+fig = plt.figure(constrained_layout=True, figsize=(10, 5))
+gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1.6], figure=fig)
+ax1 = fig.add_subplot(gs[0, 0])
+right_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[0, 1])
+ax2 = fig.add_subplot(right_gs[0, 0])
+ax3 = fig.add_subplot(right_gs[0, 1])
+compare_WoutWin_Mscaled(trained_model_noisy, noisy_dataset, ax=ax1)
+trained_model_noisy.plot_weights(axes=[ax2, ax3])
+ax2.set_title(r"$W_{\rm in}$")
+ax3.set_title(r"$W_{\rm out}^T$")
+fig.savefig("plots/nb3a_WoutWin_Mscaled_plus_weights.png")
 plt.show()
 
 # %% Semi-NMF solution
@@ -128,7 +132,7 @@ plt.show()
 scales = []
 losses = []
 models = []
-for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05]:
+for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.04]:
     noisy_dataset_nmf = NoisyDataset(n_features, p, device=device, exactly_one_active_feature=True, scale=scale)
     target_matrix = np.eye(n_features) + noisy_dataset_nmf.Mscaled.cpu().detach().numpy()
     # NMF
@@ -164,14 +168,14 @@ for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05]:
     losses.append(semi_nmf_noisy_loss)
     models.append(semi_nmf_model)
 
-fig, ax = plt.subplots(constrained_layout=True)
+fig, ax = plt.subplots(constrained_layout=True, figsize=(6.4, 3))
 ax.plot(scales, losses, label="Semi-NMF solution", marker="o")
 ax.axhline(y=0.0833, color="k", ls="--", label="Naive loss")
 ax.set_xlabel("Dataset label noise scale $\\sigma$")
 ax.set_ylabel("Loss per feature $L / p$")
 ax.grid(True, alpha=0.3)
 ax.legend()
-fig.savefig("plots/nb3c_semi_nmf_solution.png")
+fig.savefig("plots/nb3b_semi_nmf_solution.png")
 plt.show()
 
 for model in models:

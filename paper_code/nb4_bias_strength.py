@@ -87,10 +87,13 @@ plot_loss_of_input_sparsity(
     labels=trained_labels + handcoded_labels,
     colors=colors + handcoded_colors,
     linestyles=linestyles + handcoded_linestyles,
-    show_naive=True,
+    show_naive=False,
     ax=ax2,
 )
 ax2.legend().remove()
+ax2.axhline(y=0.0833, color="k", ls=":", label="Naive loss")
+ax2.plot([], [], color="k", ls="-", label="Trained model")
+ax2.plot([], [], color="k", ls="--", label="Naive model")
 ax2.legend(loc="upper left", ncols=2, title="Feature probability")
 ax2.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
 ax2.grid(True, alpha=0.3)

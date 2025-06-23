@@ -95,7 +95,7 @@ plt.show()
 # %% Try transplant noisy to clean and fine-tuning
 
 losses_clean_ft = train(resid_transpose_model, clean_dataset, batch_size=batch_size_train, steps=n_steps)
-fig_ft, ax_ft = plt.subplots(constrained_layout=True)
+fig_ft, ax_ft = plt.subplots(constrained_layout=True, figsize=(6.4, 3))
 losses_noisy_avg = np.convolve(losses_noisy, np.ones(100) / 100, mode="valid")
 losses_clean_ft_avg = np.convolve(losses_clean_ft, np.ones(100) / 100, mode="valid")
 scale = noise_dataset.scale.abs().item()
