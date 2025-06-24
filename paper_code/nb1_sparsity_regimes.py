@@ -63,7 +63,7 @@ plt.show()
 
 
 fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(10, 5), sharey=True)
-fig.suptitle(r"Model weights $W_{\rm in} \odot W_{\rm out}$ stacked by neuron")
+fig.suptitle(r"Model weights $W_{\rm out} \odot W_{\rm in}$ stacked by neuron")
 for model, ax, p in zip([models[0], models[-1]], [ax1, ax2], [str_train_ps[0], str_train_ps[-1]]):
     ax.set_title("p=" + p)
     model.plot_weight_bars(ax=ax)
