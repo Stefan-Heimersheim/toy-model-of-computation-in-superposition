@@ -1,29 +1,10 @@
-# Investigating Computation in Superposition in Toy Models
+# Compressed Computation is (probably) not Computation in Superposition
 
-## Background
-This repo contains code and experiments exploring **computation in superposition** in toy neural networks, including variants of the "compressed computation" model introduced by Apollo Research in [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition), and "toy models of superposition" introduced by Anthropic in [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html).
+In our [LessWrong post](https://www.lesswrong.com/editPost?postId=ZxFchCFJFcgysYsT9&key=59913cc8c7c03d1804451d5f50a036), we investigate the toy model of Compressed Computation (CC), introduced by [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition), which is a model that seemingly computes more non-linear functions (100 target ReLU functions) than it has ReLU neurons (50). Our results cast doubt on whether the mechanism behind this toy model is indeed computing more functions than it has neurons: We find that the model performance solely relies on noisy labels, and that its performance advantage compared to baselines diminishes with lower noise.
 
-Neural networks can represent more features than they have neurons by *storing information in superposition* ([Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html)): this allows networks to compress and reconstruct sparse inputs by distributing feature representations across multiple neurons.
+Specifically, we show that the Braun et al. (2025) setup can be split into two loss terms: the ReLU task and a noise term that mixes the different input features ("mixing matrix"). We isolate these terms, and show that the optimal total loss increases as we reduce the magnitude of the mixing matrix. This suggests that the loss advantage of the trained model does not originate from a clever algorithm to compute the ReLU functions in superposition (computation in superposition, CiS), but from taking advantage of the noise. Additionally, we find that the directions represented by the trained model mainly lie in the subspace of the positive eigenvalues of the mixing matrix, suggesting that this matrix determines the learned solution. Finally we present a non-trained model derived from the mixing matrix which improves upon previous baselines. This model exhibits a similar performance profile as the trained model, but does not match all its properties.
 
-The authors also show a motif by which neural networks can **perform computation in superposition (CiS)**, compute more functions than would be expected if each neuron participated in only one computation. Both phenomena emerge in **sparse input regimes**, where only a few features are active at a time.
-
-Inspired by [Hänni et al. (2024)](https://arxiv.org/abs/2408.05451), we adopt a **stricter definition of computation in superposition**:
-
-> A network exhibits computation in superposition if it performs more *computations* than it has *nonlinearities*.
-
-This avoids conflating CiS with cases where large networks trivially embed solutions using enough parameters or dimensions.
-
-## Our experiments 
-
-We replicate and extend experiments on a toy model introduced by [Apollo Research](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition), and a simplified variant that exhibits the same behaviour. Our aim is to determine whether this toy model is actually implementing computation in superposition and how, or if another mechanism is at play. 
-
-## Key Findings (so far):
-
-- **CiS-like behaviour emerges**: the model performs better than a monosemantic baseline in sparse-input regimes.
-
-- **Residual stream with noise is critical**: CiS behaviour vanishes when we remove the residual path or the embedding/unembedding layers of the residual of the original Apollo model.
-
-- **Underlying mechanisms**: currently under investigation. 
+While we have not been able to fully reverse-engineer the CC model, this work reveals several key mechanisms behind the model. Our results suggest that CC is likely not a suitable toy model of CiS.
 
 ## Toy model architecture
 
@@ -33,9 +14,10 @@ We replicate and extend experiments on a toy model introduced by [Apollo Researc
 
 ```bash
 .
-├── notebooks/             # Experiment notebooks
+├── paper-code             # Reproduce all experiments and figures in LessWrong post
+├── notebooks/             # Additional experiments
 ├── toy_cis/               # Training, evaluation, visualization functions
-├── test/                  # To be removed? 
+├── test/                  # 
 ├── README.md              # You are here!
 └── pyproject.toml         # Environment config
 ```
@@ -45,13 +27,6 @@ We replicate and extend experiments on a toy model introduced by [Apollo Researc
 Recommended with [pixi](https://pixi.sh/latest/tutorials/python).
 
 In the root directory, just run `pixi install --manifest-path ./pyproject.toml` - this will create a conda env named 'toy-cis'.
-
-## 📚 References
-
-* [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html): Anthropic's toy model of superposition
-* [Cammarata et al. (2020)](https://transformer-circuits.pub/2020/polysemanticity/index.html): Polysemanticity and neuron capacity
-* [Hänni et al. (2024)](https://arxiv.org/abs/2408.05451): Mathematical models of computation in superposition
-* [Braun et al. (2025)](https://www.apolloresearch.ai/research/interpretability-in-parameter-space-minimizing-mechanistic-description-length-with-attribution-based-parameter-decomposition): Apollo Research's toy model of "compressed computation". 
 
 
 
