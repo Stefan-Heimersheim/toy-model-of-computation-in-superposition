@@ -175,6 +175,7 @@ plt.show()
 scales = []
 losses = []
 models = []
+nmf_datasets = []
 for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.04]:
     noisy_dataset_nmf = NoisyDataset(
         n_features, p, device=device, exactly_one_active_feature=True, scale=scale
@@ -212,6 +213,7 @@ for scale in [0.0, 0.005, 0.008, 0.01, 0.015, 0.02, 0.03, 0.04]:
     scales.append(scale)
     losses.append(semi_nmf_noisy_loss)
     models.append(semi_nmf_model)
+    nmf_datasets.append(noisy_dataset_nmf)
 
 fig, ax = plt.subplots(constrained_layout=True, figsize=(6.4, 3))
 ax.plot(scales, losses, label="Semi-NMF solution", marker="o")
@@ -231,7 +233,7 @@ ax1 = fig.add_subplot(gs[0, 0])
 right_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[0, 1])
 ax2 = fig.add_subplot(right_gs[0, 0])
 ax3 = fig.add_subplot(right_gs[0, 1])
-compare_WoutWin_Mscaled(models[4], noisy_dataset, ax=ax1)
+compare_WoutWin_Mscaled(models[4], nmf_datasets[4], ax=ax1)
 models[4].plot_weights(axes=[ax2, ax3])
 ax2.set_title(r"$W_{\rm in}$")
 ax3.set_title(r"$W_{\rm out}^T$")
